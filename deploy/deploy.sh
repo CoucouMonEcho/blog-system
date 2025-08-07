@@ -54,10 +54,10 @@ check_requirements() {
     fi
     
     # 检查Redis是否运行
-    if ! systemctl is-active --quiet redis-cli -p 7001; then
+    if ! systemctl is-active --quiet redis; then
         log_warn "Redis服务未运行，请确保Redis已安装并启动"
         log_info "尝试启动Redis服务..."
-        systemctl start redis-cli -p 7001 || log_warn "Redis启动失败"
+        systemctl start redis || log_warn "Redis启动失败"
     else
         log_info "Redis服务运行正常"
     fi
@@ -153,15 +153,19 @@ build_application() {
 create_service_file() {
     log_info "创建systemd服务文件..."
     
+    # 获取当前用户
+    CURRENT_USER=$(whoami)
+    CURRENT_GROUP=$(id -gn)
+    
     cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
 [Unit]
 Description=Blog System User Service
-After=network.target mysql.service redis.service
+After=network.target mysqld.service redis.service
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=${CURRENT_USER}
+Group=${CURRENT_GROUP}
 WorkingDirectory=${DEPLOY_PATH}/services/user
 ExecStart=${DEPLOY_PATH}/services/user/user-service
 Restart=always
@@ -183,8 +187,9 @@ EOF
 start_service() {
     log_info "启动服务..."
     
-    # 设置文件权限
-    chown -R www-data:www-data ${DEPLOY_PATH}
+    # 设置文件权限（使用当前用户）
+    CURRENT_USER=$(whoami)
+    chown -R ${CURRENT_USER}:${CURRENT_USER} ${DEPLOY_PATH}
     chmod +x ${DEPLOY_PATH}/services/user/user-service
     
     # 启用服务
