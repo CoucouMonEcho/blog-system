@@ -36,18 +36,30 @@ check_requirements() {
     
     # 检查Go是否安装
     if ! command -v go &> /dev/null; then
-        log_error "Go未安装，请先安装Go 1.21+"
+        log_error "Go未安装，请先安装Go 1.24.2+"
         exit 1
     fi
     
+    # 检查Go版本
+    GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
+    log_info "Go版本: $GO_VERSION"
+    
     # 检查MySQL是否运行
-    if ! systemctl is-active --quiet mysql; then
+    if ! systemctl is-active --quiet mysqld; then
         log_warn "MySQL服务未运行，请确保MySQL已安装并启动"
+        log_info "尝试启动MySQL服务..."
+        systemctl start mysqld || log_warn "MySQL启动失败"
+    else
+        log_info "MySQL服务运行正常"
     fi
     
     # 检查Redis是否运行
-    if ! systemctl is-active --quiet redis; then
+    if ! systemctl is-active --quiet redis-cli -p 7001; then
         log_warn "Redis服务未运行，请确保Redis已安装并启动"
+        log_info "尝试启动Redis服务..."
+        systemctl start redis-cli -p 7001 || log_warn "Redis启动失败"
+    else
+        log_info "Redis服务运行正常"
     fi
 }
 
@@ -60,6 +72,7 @@ create_directories() {
     mkdir -p ${DEPLOY_PATH}/configs
     mkdir -p ${DEPLOY_PATH}/services
     mkdir -p ${DEPLOY_PATH}/scripts
+    mkdir -p ${DEPLOY_PATH}/common
     
     log_info "目录创建完成"
 }
@@ -108,14 +121,28 @@ build_application() {
     
     cd ${DEPLOY_PATH}/services/user
     
+    # 设置Go环境变量
+    export GOOS=linux
+    export GOARCH=amd64
+    export CGO_ENABLED=0
+    
     # 下载依赖
     go mod download
     
-    # 构建应用
-    go build -o user-service .
+    # 构建应用（静态链接，避免GLIBC版本问题）
+    go build -ldflags="-s -w" -o user-service .
     
     if [ $? -eq 0 ]; then
         log_info "应用构建成功"
+        
+        # 验证二进制文件
+        if [ -f "user-service" ]; then
+            log_info "二进制文件大小: $(ls -lh user-service | awk '{print $5}')"
+            log_info "二进制文件类型: $(file user-service)"
+        else
+            log_error "二进制文件未生成"
+            exit 1
+        fi
     else
         log_error "应用构建失败"
         exit 1
@@ -141,6 +168,7 @@ Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
+Environment=GOMAXPROCS=1
 
 [Install]
 WantedBy=multi-user.target
@@ -155,6 +183,10 @@ EOF
 start_service() {
     log_info "启动服务..."
     
+    # 设置文件权限
+    chown -R www-data:www-data ${DEPLOY_PATH}
+    chmod +x ${DEPLOY_PATH}/services/user/user-service
+    
     # 启用服务
     systemctl enable ${SERVICE_NAME}
     
@@ -162,12 +194,13 @@ start_service() {
     systemctl start ${SERVICE_NAME}
     
     # 检查服务状态
-    sleep 3
+    sleep 5
     if systemctl is-active --quiet ${SERVICE_NAME}; then
         log_info "服务启动成功"
     else
         log_error "服务启动失败"
-        systemctl status ${SERVICE_NAME}
+        systemctl status ${SERVICE_NAME} --no-pager -l
+        log_error "查看详细日志: journalctl -u ${SERVICE_NAME} -f"
         exit 1
     fi
 }
@@ -177,13 +210,15 @@ health_check() {
     log_info "执行健康检查..."
     
     # 等待服务启动
-    sleep 5
+    sleep 10
     
     # 检查端口是否监听
     if netstat -tlnp | grep :8001 > /dev/null; then
         log_info "服务端口8001监听正常"
     else
         log_error "服务端口8001未监听"
+        log_error "检查服务状态: systemctl status ${SERVICE_NAME}"
+        log_error "查看服务日志: journalctl -u ${SERVICE_NAME} -f"
         exit 1
     fi
     
@@ -192,6 +227,7 @@ health_check() {
         log_info "API健康检查通过"
     else
         log_warn "API健康检查失败，但服务已启动"
+        log_info "尝试访问: curl http://localhost:8001/health"
     fi
 }
 
@@ -210,6 +246,9 @@ show_status() {
     
     echo "=== 进程信息 ==="
     ps aux | grep user-service | grep -v grep || echo "进程未运行"
+    
+    echo "=== 二进制文件 ==="
+    ls -la ${DEPLOY_PATH}/services/user/user-service || echo "二进制文件不存在"
 }
 
 # 主函数

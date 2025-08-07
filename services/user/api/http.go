@@ -5,8 +5,10 @@ import (
 	"blog-system/common/pkg/errcode"
 	"blog-system/common/pkg/util"
 	"blog-system/services/user/application"
-	"github.com/CoucouMonEcho/go-framework/web"
 	"net/http"
+	"time"
+
+	"github.com/CoucouMonEcho/go-framework/web"
 )
 
 // HTTPServer HTTP 服务器
@@ -29,6 +31,9 @@ func NewHTTPServer(userService *application.UserAppService) *HTTPServer {
 
 // registerRoutes 注册路由
 func (server *HTTPServer) registerRoutes() {
+	// 健康检查
+	server.engine.Get("/health", server.HealthCheck)
+
 	// 公开接口
 	server.engine.Post("/api/register", server.Register)
 	server.engine.Post("/api/login", server.Login)
@@ -40,6 +45,15 @@ func (server *HTTPServer) registerRoutes() {
 		server.engine.Post("/user/info/:user_id", server.UpdateUserInfo)
 		server.engine.Post("/user/password/:user_id", server.ChangePassword)
 	}
+}
+
+// HealthCheck 健康检查
+func (server *HTTPServer) HealthCheck(c *web.Context) {
+	_ = c.RespJSONOK(dto.Success(map[string]any{
+		"status":    "ok",
+		"service":   "user-service",
+		"timestamp": time.Now().Unix(),
+	}))
 }
 
 // Register 用户注册
