@@ -1,0 +1,22 @@
+app:
+  name: user-service
+  port: 8001
+
+database:
+  driver: "mysql"
+  host: 172.21.87.206
+  port: 3306
+  user: root
+  password: BLOG_PASSWORD
+  name: blog_user
+
+redis:
+  addr: 127.0.0.1:6379
+  password: ""
+
+grpc:
+  port: 9001
+
+log:
+  level: debug
+  path: logs/user.log

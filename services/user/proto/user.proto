@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "blog-system/services/user/proto";
+
+// 用户服务
+service UserService {
+
+  // 用户注册
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  // 用户登录
+  rpc Login(LoginRequest) returns (LoginResponse);
+  // 获取用户信息
+  rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse);
+  // 更新用户信息
+  rpc UpdateUserInfo(UpdateUserInfoRequest) returns (UpdateUserInfoResponse);
+  // 修改密码
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  // 重置密码
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
+  // 获取用户列表
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // 更新用户状态
+  rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UpdateUserStatusResponse);
+
+}
+
+// 用户信息
+message User {
+  int64 id = 1;
+  string username = 2;
+  string email = 3;
+  string role = 4;
+  string avatar = 5;
+  int32 status = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+// 注册请求
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+
+// 注册响应
+message RegisterResponse {
+  int32 code = 1;
+  string message = 2;
+  User data = 3;
+}
+
+// 登录请求
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// 登录响应
+message LoginResponse {
+  int32 code = 1;
+  string message = 2;
+  string token = 3;
+  User user = 4;
+}
+
+// 获取用户信息请求
+message GetUserInfoRequest {
+  int64 user_id = 1;
+}
+
+// 获取用户信息响应
+message GetUserInfoResponse {
+  int32 code = 1;
+  string message = 2;
+  User data = 3;
+}
+
+// 更新用户信息请求
+message UpdateUserInfoRequest {
+  int64 user_id = 1;
+  string username = 2;
+  string email = 3;
+  string avatar = 4;
+}
+
+// 更新用户信息响应
+message UpdateUserInfoResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+// 修改密码请求
+message ChangePasswordRequest {
+  int64 user_id = 1;
+  string old_password = 2;
+  string new_password = 3;
+}
+
+// 修改密码响应
+message ChangePasswordResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+// 重置密码请求
+message ResetPasswordRequest {
+  string email = 1;
+}
+
+// 重置密码响应
+message ResetPasswordResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+// 用户列表请求
+message ListUsersRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+// 用户列表响应
+message ListUsersResponse {
+  int32 code = 1;
+  string message = 2;
+  repeated User data = 3;
+  int64 total = 4;
+}
+
+// 更新用户状态请求
+message UpdateUserStatusRequest {
+  int64 user_id = 1;
+  int32 status = 2;
+}
+
+// 更新用户状态响应
+message UpdateUserStatusResponse {
+  int32 code = 1;
+  string message = 2;
+} 
