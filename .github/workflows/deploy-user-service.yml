@@ -1,27 +1,24 @@
-name: Deploy All Services
+name: Deploy User Service
 
 on:
   push:
     branches: [ main ]
-    paths-ignore:
+    paths:
       - 'services/user/**'
-      - 'services/gateway/**'
       - 'common/**'
-      - 'configs/**'
-      - '.github/workflows/deploy-common.yml'
+      - 'configs/user.yaml'
       - '.github/workflows/deploy-user-service.yml'
-      - '.github/workflows/deploy-gateway-service.yml'
   workflow_dispatch:
 
 jobs:
-  deploy-all:
+  deploy-user-service:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
       
-    - name: Deploy all services
+    - name: Deploy user service
       uses: appleboy/ssh-action@v0.1.5
       with:
         host: ${{ secrets.SSH_HOST }}
@@ -31,19 +28,18 @@ jobs:
         script: |
           mkdir -p /opt/blog-system
           systemctl stop user-service || true
-          systemctl stop gateway-service || true
-          rm -rf /opt/blog-system/services /opt/blog-system/configs /opt/blog-system/deploy /opt/blog-system/common
+          rm -rf /opt/blog-system/services/user /opt/blog-system/configs/user.yaml
           
-    - name: Upload all files
+    - name: Upload user service files
       uses: appleboy/scp-action@v0.1.4
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services,configs,deploy,common"
+        source: "services/user,configs/user.yaml"
         target: /opt/blog-system
         
-    - name: Execute full deployment
+    - name: Execute user service deployment
       uses: appleboy/ssh-action@v0.1.5
       with:
         host: ${{ secrets.SSH_HOST }}
@@ -54,24 +50,21 @@ jobs:
           cd /opt/blog-system
           export BLOG_PASSWORD="${{ secrets.BLOG_PASSWORD }}"
           chmod +x deploy/deploy.sh
-          chmod +x deploy/deploy-user-service.sh
-          chmod +x deploy/deploy-gateway-service.sh
-          ./deploy/deploy.sh
+          # 只部署用户服务
+          ./deploy/deploy-user-service.sh
           
-    - name: Verify all services
+    - name: Verify user service
       uses: appleboy/ssh-action@v0.1.5
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          sleep 15
-          echo "=== 检查所有服务状态 ==="
-          systemctl status user-service --no-pager -l
-          systemctl status gateway-service --no-pager -l
-          
-          echo "=== 检查端口监听 ==="
-          netstat -tlnp | grep -E ":(8000|8001)"
-          
-          echo "=== 检查服务日志 ==="
-          ls -la /opt/blog-system/logs/ 
+          sleep 10
+          if systemctl is-active --quiet user-service; then
+            echo "User service deployed successfully"
+          else
+            echo "User service deployment failed"
+            systemctl status user-service --no-pager -l
+            exit 1
+          fi 

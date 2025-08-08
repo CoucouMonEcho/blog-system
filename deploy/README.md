@@ -1,544 +1,230 @@
-# Blog System 轻量级部署指南
+# Blog System 部署文档
 
-本文档详细说明如何通过 GitHub Actions 将 Blog System 部署到轻量级云服务器。
+## 概述
 
-## 📋 前置要求
+本项目采用DDD微服务架构，支持模块化部署和完整部署两种方式。
 
-### 1. 云服务器准备
-- 一台运行 Linux 的轻量级云服务器（推荐 Ubuntu 20.04+）
-- 服务器已安装 Go 1.24.2+
-- 服务器已安装 MySQL 8.0+
-- 服务器已安装 Redis 7.0+
-- 服务器已配置 SSH 密钥认证
+## 部署架构
 
-### 2. GitHub 仓库设置
-- 项目已推送到 GitHub 仓库
-- 仓库已启用 GitHub Actions
-
-## 🔧 GitHub 仓库配置
-
-### 1. 设置 Secrets
-
-在 GitHub 仓库中设置以下 Secrets：
-
-#### SSH 连接配置
+### 服务依赖关系
 ```
-SSH_HOST          # 服务器IP地址
-SSH_USERNAME      # SSH用户名（如：root）
-SSH_PRIVATE_KEY   # SSH私钥内容
+Redis Cluster (7001, 7002, 7003)
+    ↓
+Common Module
+    ↓
+User Service (8001)
+    ↓
+Gateway Service (8000)
+    ↓
+Admin Service (待开发)
 ```
 
-#### 数据库配置
-```
-BLOG_PASSWORD     # 数据库密码
-```
+### 工作流文件
 
-### 2. 设置方法
+1. **deploy-common.yml** - 部署公共模块
+   - 触发条件：common目录变更
+   - 功能：上传common模块到服务器
 
-1. 进入 GitHub 仓库页面
-2. 点击 `Settings` → `Secrets and variables` → `Actions`
-3. 点击 `New repository secret`
-4. 添加上述每个 Secret
+2. **deploy-user-service.yml** - 部署用户服务
+   - 触发条件：user服务或common模块变更
+   - 依赖：common模块
+   - 功能：部署用户服务到8001端口
 
-## 📁 项目结构
+3. **deploy-gateway-service.yml** - 部署网关服务
+   - 触发条件：gateway服务或common模块变更
+   - 依赖：user服务
+   - 功能：部署网关服务到8000端口
 
-确保项目包含以下文件：
+4. **deploy.yml** - 完整部署
+   - 触发条件：其他文件变更（排除单独服务）
+   - 功能：部署所有服务
 
-```
-blog-system/
-├── .github/
-│   └── workflows/
-│       └── deploy.yml
-├── common/
-│   └── pkg/
-│       └── logger/
-│           └── logger.go
-├── configs/
-│   └── user.yaml
-├── deploy/
-│   ├── README.md
-│   └── deploy.sh
-├── services/
-│   └── user/
-└── README.md
-```
+## 部署脚本
 
-## 🚀 GitHub Actions 工作流
+### 主要脚本
 
-### 1. 创建工作流文件
+1. **deploy.sh** - 完整部署脚本
+   - 部署所有服务
+   - 包含依赖检查
+   - 包含服务验证
 
-在 `.github/workflows/deploy.yml` 中创建以下内容：
+2. **deploy-user-service.sh** - 用户服务部署脚本
+   - 只部署用户服务
+   - 包含Redis依赖检查
+   - 包含服务验证
 
-```yaml
-name: Deploy to Production
+3. **deploy-gateway-service.sh** - 网关服务部署脚本
+   - 只部署网关服务
+   - 包含用户服务依赖检查
+   - 包含服务验证
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+4. **manage-deploy.sh** - 部署管理脚本
+   - 统一管理所有部署操作
+   - 支持服务状态查看
+   - 支持服务重启/停止/更新
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      
-    - name: Setup Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: '1.24.2'
-        
-    - name: Build application
-      run: |
-        cd services/user
-        go mod download
-        go build -o user-service .
-        
-    - name: Deploy to server
-      uses: appleboy/ssh-action@v0.1.5
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: 22
-        script: |
-          mkdir -p /opt/blog-system
-          systemctl stop user-service || true
-          rm -rf /opt/blog-system/services /opt/blog-system/configs /opt/blog-system/deploy
-          
-    - name: Upload files
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services,configs,deploy"
-        target: /opt/blog-system
-        
-    - name: Execute deployment script
-      uses: appleboy/ssh-action@v0.1.5
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        envs: BLOG_PASSWORD
-        script: |
-          cd /opt/blog-system
-          export BLOG_PASSWORD="${{ secrets.BLOG_PASSWORD }}"
-          chmod +x deploy/deploy.sh
-          ./deploy/deploy.sh
-```
-
-## 🐧 服务器环境准备
-
-### 1. 安装 Go
+### 管理脚本用法
 
 ```bash
-# Ubuntu/Debian
-sudo apt update
-sudo apt install golang-go
+# 显示帮助
+./manage-deploy.sh -h
 
-# 或者下载最新版本
-wget https://go.dev/dl/go1.24.2.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.24.2.linux-amd64.tar.gz
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-source ~/.bashrc
+# 列出所有服务
+./manage-deploy.sh -l
 
-# 验证安装
-go version
+# 显示所有服务状态
+./manage-deploy.sh -s
+
+# 显示特定服务状态
+./manage-deploy.sh -s user
+
+# 重启所有服务
+./manage-deploy.sh -r all
+
+# 重启特定服务
+./manage-deploy.sh -r user
+
+# 停止特定服务
+./manage-deploy.sh -t gateway
+
+# 更新特定服务
+./manage-deploy.sh -u user
 ```
 
-### 2. 安装 MySQL
+## 日志优化
+
+### 问题解决
+
+原问题：GitHub Actions日志中出现大量无用的 `err:` 和 `out:` 输出。
+
+### 解决方案
+
+1. **添加静默执行函数**
+   ```bash
+   silent_exec() {
+       "$@" >/dev/null 2>&1
+   }
+   ```
+
+2. **重定向所有命令输出**
+   - 使用 `silent_exec` 包装所有不需要输出的命令
+   - 保留重要的日志信息
+   - 抑制构建过程和系统命令的冗余输出
+
+3. **优化端口检查**
+   - 使用更安静的方式检查端口监听
+   - 避免管道命令产生不必要的输出
+
+## 部署流程
+
+### 模块化部署（推荐）
+
+1. **部署公共模块**
+   ```bash
+   # 通过GitHub Actions自动触发
+   # 或手动触发 deploy-common.yml
+   ```
+
+2. **部署用户服务**
+   ```bash
+   # 通过GitHub Actions自动触发
+   # 或手动触发 deploy-user-service.yml
+   ```
+
+3. **部署网关服务**
+   ```bash
+   # 通过GitHub Actions自动触发
+   # 或手动触发 deploy-gateway-service.yml
+   ```
+
+### 完整部署
 
 ```bash
-# Ubuntu/Debian
-sudo apt install mysql-server
-sudo systemctl start mysql
-sudo systemctl enable mysql
-
-# 配置MySQL
-sudo mysql_secure_installation
-
-# 创建数据库和用户
-sudo mysql -u root -p
-CREATE DATABASE blog_user;
-CREATE USER 'blog_user'@'localhost' IDENTIFIED BY 'your_secure_password';
-GRANT ALL PRIVILEGES ON blog_user.* TO 'blog_user'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
+# 通过GitHub Actions自动触发
+# 或手动触发 deploy.yml
 ```
 
-### 3. 安装 Redis
+## 验证部署
+
+### 服务状态检查
 
 ```bash
-# Ubuntu/Debian
-sudo apt install redis-server
-sudo systemctl start redis
-sudo systemctl enable redis
-
-# 验证Redis
-redis-cli ping
-```
-
-### 4. 创建系统用户
-
-```bash
-# 创建应用用户
-sudo useradd -r -s /bin/false www-data
-sudo usermod -aG www-data www-data
-```
-
-## 🔐 SSH 密钥配置
-
-### 1. 生成 SSH 密钥对
-
-```bash
-# 在本地生成密钥对
-ssh-keygen -t rsa -b 4096 -C "github-actions"
-
-# 查看公钥
-cat ~/.ssh/id_rsa.pub
-
-# 查看私钥
-cat ~/.ssh/id_rsa
-```
-
-### 2. 配置服务器
-
-```bash
-# 在服务器上添加公钥
-echo "你的公钥内容" >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-chmod 700 ~/.ssh
-
-# 测试SSH连接
-ssh username@your-server-ip
-```
-
-### 3. 配置 GitHub Secrets
-
-将私钥内容复制到 `SSH_PRIVATE_KEY` Secret 中。
-
-## 📝 配置文件管理
-
-### 1. 更新 user.yaml
-
-确保 `configs/user.yaml` 中的配置适合轻量级部署：
-
-```yaml
-app:
-  name: user-service
-  port: 8001
-
-database:
-  driver: "mysql"
-  host: localhost  # 本地MySQL
-  port: 3306
-  user: root
-  password: BLOG_PASSWORD  # 将被替换
-  name: blog_user
-
-redis:
-  addr: localhost:6379  # 本地Redis
-  password: ""
-
-log:
-  level: info
-  path: /var/log/blog-system/user.log
-```
-
-## 🚀 部署步骤
-
-### 1. 手动触发部署
-
-1. 进入 GitHub 仓库
-2. 点击 `Actions` 标签
-3. 选择 `Deploy to Production` 工作流
-4. 点击 `Run workflow`
-5. 选择分支并点击 `Run workflow`
-
-### 2. 自动部署
-
-推送代码到 `main` 分支将自动触发部署。
-
-## 🔍 部署验证
-
-### 1. 检查服务状态
-
-```bash
-# SSH 到服务器
-ssh username@your-server-ip
-
-# 检查服务状态
+# 检查所有服务状态
 systemctl status user-service
+systemctl status gateway-service
 
-# 查看服务日志
-journalctl -u user-service -f
+# 检查端口监听
+netstat -tlnp | grep -E ":(8000|8001)"
+
+# 检查服务日志
+ls -la /opt/blog-system/logs/
 ```
 
-### 2. 测试 API
+### 服务访问测试
 
 ```bash
-# 测试服务健康状态
-curl http://your-server-ip:8001/health
+# 测试用户服务
+curl http://localhost:8001/health
 
-# 测试用户注册
-curl -X POST http://your-server-ip:8001/api/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"test","email":"test@example.com","password":"123456"}'
-
-# 测试用户登录
-curl -X POST http://your-server-ip:8001/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"test","password":"123456"}'
+# 测试网关服务
+curl http://localhost:8000/health
 ```
 
-## 🛠️ 故障排除
-
-### 1. 常见问题
-
-#### SSH 连接失败
-- 检查 `SSH_HOST` 和 `SSH_USERNAME` 是否正确
-- 确认服务器防火墙允许 SSH 连接
-- 验证 SSH 密钥是否正确配置
-
-#### 数据库连接失败
-- 检查 `BLOG_PASSWORD` Secret 是否正确设置
-- 确认 MySQL 服务是否正常启动
-- 检查数据库用户权限
-
-#### 服务启动失败
-- 查看服务日志：`journalctl -u user-service -f`
-- 检查端口是否被占用：`netstat -tlnp | grep 8001`
-- 确认配置文件格式正确
-
-### 2. 日志查看
-
-```bash
-# 查看应用日志
-tail -f /var/log/blog-system/user.log
-
-# 查看系统服务日志
-journalctl -u user-service -f
-
-# 查看实时日志
-journalctl -u user-service -f --since "5 minutes ago"
-```
-
-## 📊 监控和维护
-
-### 1. 服务监控
-
-```bash
-# 查看服务状态
-systemctl status user-service
-
-# 查看资源使用情况
-ps aux | grep user-service
-
-# 查看日志
-journalctl -u user-service -f
-```
-
-### 2. 备份策略
-
-```bash
-# 备份数据库
-mysqldump -u root -p blog_user > backup_$(date +%Y%m%d_%H%M%S).sql
-
-# 备份配置文件
-cp -r /opt/blog-system/configs /backup/configs_$(date +%Y%m%d_%H%M%S)
-
-# 备份日志
-cp /var/log/blog-system/user.log /backup/user_$(date +%Y%m%d_%H%M%S).log
-```
-
-## 🔄 更新部署
-
-### 1. 自动更新
-
-推送代码到 `main` 分支将自动触发重新部署。
-
-### 2. 手动更新
-
-```bash
-# SSH 到服务器
-ssh username@your-server-ip
-
-# 进入部署目录
-cd /opt/blog-system
-
-# 拉取最新代码
-git pull origin main
-
-# 重新部署
-./deploy/deploy.sh
-```
-
-### 3. 服务管理
-
-```bash
-# 停止服务
-sudo systemctl stop user-service
-
-# 启动服务
-sudo systemctl start user-service
-
-# 重启服务
-sudo systemctl restart user-service
-
-# 查看状态
-sudo systemctl status user-service
-
-# 启用开机自启
-sudo systemctl enable user-service
-```
-
-## 📈 性能优化
-
-### 1. 系统优化
-
-```bash
-# 调整文件描述符限制
-echo "* soft nofile 65536" >> /etc/security/limits.conf
-echo "* hard nofile 65536" >> /etc/security/limits.conf
-
-# 调整内核参数
-echo "net.core.somaxconn = 65535" >> /etc/sysctl.conf
-echo "net.ipv4.tcp_max_syn_backlog = 65535" >> /etc/sysctl.conf
-sysctl -p
-```
-
-### 2. MySQL 优化
-
-```bash
-# 编辑MySQL配置
-sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
-
-# 添加以下配置
-[mysqld]
-innodb_buffer_pool_size = 256M
-innodb_log_file_size = 64M
-max_connections = 200
-```
-
-### 3. Redis 优化
-
-```bash
-# 编辑Redis配置
-sudo nano /etc/redis/redis.conf
-
-# 添加以下配置
-maxmemory 256mb
-maxmemory-policy allkeys-lru
-```
-
-## 🔒 安全加固
-
-### 1. 防火墙配置
-
-```bash
-# 安装ufw
-sudo apt install ufw
-
-# 配置防火墙规则
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow ssh
-sudo ufw allow 8001
-sudo ufw enable
-```
-
-### 2. 系统安全
-
-```bash
-# 更新系统
-sudo apt update && sudo apt upgrade -y
-
-# 安装安全工具
-sudo apt install fail2ban
-
-# 配置fail2ban
-sudo nano /etc/fail2ban/jail.local
-```
-
-### 3. 数据库安全
-
-```bash
-# 删除匿名用户
-sudo mysql -u root -p
-DELETE FROM mysql.user WHERE User='';
-FLUSH PRIVILEGES;
-EXIT;
-
-# 限制远程访问
-sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
-# 添加 bind-address = 127.0.0.1
-```
-
-## 📞 技术支持
-
-如遇到部署问题，请检查：
-
-1. **GitHub Actions 日志**: 查看构建和部署日志
-2. **服务器系统日志**: `journalctl -u user-service`
-3. **应用日志文件**: `/var/log/blog-system/user.log`
-4. **网络连接状态**: `netstat -tlnp | grep 8001`
-
-### 常见错误及解决方案
-
-#### 1. 权限错误
-```bash
-# 修复文件权限
-sudo chown -R www-data:www-data /opt/blog-system
-sudo chmod +x /opt/blog-system/deploy/deploy.sh
-```
-
-#### 2. 端口占用
-```bash
-# 查看端口占用
-sudo netstat -tlnp | grep 8001
-
-# 杀死占用进程
-sudo kill -9 <PID>
-```
-
-#### 3. 数据库连接失败
-```bash
-# 检查MySQL状态
-sudo systemctl status mysql
-
-# 重启MySQL
-sudo systemctl restart mysql
-
-# 检查连接
-mysql -u root -p -h localhost
-```
-
-## 💡 轻量级部署优势
-
-### 1. 资源占用少
-- 无需 Docker 容器开销
-- 直接使用系统服务
-- 内存占用更少
-
-### 2. 部署简单
-- 无需容器编排
-- 直接使用 shell 脚本
-- 配置更直观
-
-### 3. 维护方便
-- 使用 systemd 管理服务
-- 日志集成到系统日志
-- 监控更简单
-
-### 4. 成本效益
-- 适合轻量级服务器
-- 资源利用率高
-- 运维成本低
-
----
-
-**注意**: 请确保所有敏感信息（如数据库密码）都通过 GitHub Secrets 管理，不要直接写在配置文件中。 
+## 故障排除
+
+### 常见问题
+
+1. **服务启动失败**
+   - 检查Redis Cluster是否正常运行
+   - 检查配置文件是否正确
+   - 查看服务日志：`journalctl -u user-service`
+
+2. **端口未监听**
+   - 检查服务是否正常启动
+   - 检查防火墙设置
+   - 检查端口是否被占用
+
+3. **依赖服务未启动**
+   - 确保按依赖顺序部署
+   - 检查依赖服务状态
+   - 重新启动依赖服务
+
+### 日志位置
+
+- **服务日志**: `/opt/blog-system/logs/`
+- **系统日志**: `journalctl -u <service-name>`
+- **部署日志**: GitHub Actions 输出
+
+## 安全注意事项
+
+1. **权限管理**
+   - 所有脚本需要root权限运行
+   - 确保SSH密钥安全存储
+   - 定期更新服务器密码
+
+2. **网络安全**
+   - 确保防火墙正确配置
+   - 只开放必要的端口
+   - 使用HTTPS进行安全通信
+
+3. **数据安全**
+   - 定期备份数据库
+   - 加密敏感配置信息
+   - 监控异常访问
+
+## 性能优化
+
+1. **构建优化**
+   - 使用 `-ldflags="-s -w"` 减小二进制文件大小
+   - 设置 `CGO_ENABLED=0` 提高兼容性
+   - 使用多阶段构建减少镜像大小
+
+2. **运行优化**
+   - 配置合适的JVM参数
+   - 优化数据库连接池
+   - 使用CDN加速静态资源
+
+3. **监控优化**
+   - 配置服务监控
+   - 设置告警机制
+   - 定期检查性能指标 

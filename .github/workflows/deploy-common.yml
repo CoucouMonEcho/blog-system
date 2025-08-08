@@ -1,0 +1,52 @@
+name: Deploy Common Module
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'common/**'
+      - '.github/workflows/deploy-common.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-common:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Deploy common module
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        script: |
+          mkdir -p /opt/blog-system
+          rm -rf /opt/blog-system/common
+          
+    - name: Upload common files
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "common"
+        target: /opt/blog-system
+        
+    - name: Verify common module
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /opt/blog-system/common
+          if [ -f "go.mod" ]; then
+            echo "Common module deployed successfully"
+          else
+            echo "Common module deployment failed"
+            exit 1
+          fi 

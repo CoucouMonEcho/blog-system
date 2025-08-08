@@ -1,0 +1,92 @@
+name: Deploy Gateway Service
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'services/gateway/**'
+      - 'common/**'
+      - 'configs/gateway.yaml'
+      - '.github/workflows/deploy-gateway-service.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-gateway-service:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Check user service dependency
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        script: |
+          # 检查用户服务是否运行
+          if ! systemctl is-active --quiet user-service; then
+            echo "User service is not running. Please deploy user service first."
+            exit 1
+          fi
+          
+          # 检查用户服务端口
+          if ! netstat -tlnp | grep -q ":8001"; then
+            echo "User service port 8001 is not listening. Please check user service."
+            exit 1
+          fi
+          
+          echo "User service dependency check passed"
+          
+    - name: Deploy gateway service
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        script: |
+          mkdir -p /opt/blog-system
+          systemctl stop gateway-service || true
+          rm -rf /opt/blog-system/services/gateway /opt/blog-system/configs/gateway.yaml
+          
+    - name: Upload gateway service files
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "services/gateway,configs/gateway.yaml"
+        target: /opt/blog-system
+        
+    - name: Execute gateway service deployment
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        envs: BLOG_PASSWORD
+        script: |
+          cd /opt/blog-system
+          export BLOG_PASSWORD="${{ secrets.BLOG_PASSWORD }}"
+          chmod +x deploy/deploy.sh
+          # 只部署网关服务
+          ./deploy/deploy-gateway-service.sh
+          
+    - name: Verify gateway service
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          sleep 10
+          if systemctl is-active --quiet gateway-service; then
+            echo "Gateway service deployed successfully"
+          else
+            echo "Gateway service deployment failed"
+            systemctl status gateway-service --no-pager -l
+            exit 1
+          fi 

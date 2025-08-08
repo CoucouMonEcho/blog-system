@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# Blog System 轻量级部署脚本
+# Gateway Service 部署脚本
 set -e
 
 # 配置变量
 DEPLOY_PATH="/opt/blog-system"
-SERVICE_NAME="user-service"
-GATEWAY_SERVICE_NAME="gateway-service"
+SERVICE_NAME="gateway-service"
 LOG_PATH="/var/log/blog-system"
 
 # 日志函数
@@ -23,32 +22,28 @@ silent_exec() {
     "$@" >/dev/null 2>&1
 }
 
-# 部署单个服务
-deploy_service() {
-    local service_name=$1
-    local service_path=$2
-    local config_file=$3
-    
-    log_info "开始部署 $service_name..."
+# 部署网关服务
+deploy_gateway_service() {
+    log_info "开始部署网关服务..."
     
     # 停止现有服务
     log_info "停止现有服务..."
-    silent_exec systemctl stop ${service_name} || true
+    silent_exec systemctl stop ${SERVICE_NAME} || true
     
     # 更新配置文件
     log_info "更新配置文件..."
     if [ ! -z "$BLOG_PASSWORD" ]; then
-        silent_exec sed -i "s/BLOG_PASSWORD/$BLOG_PASSWORD/g" ${DEPLOY_PATH}/configs/${config_file}
+        silent_exec sed -i "s/BLOG_PASSWORD/$BLOG_PASSWORD/g" ${DEPLOY_PATH}/configs/gateway.yaml
         log_info "数据库密码已更新"
     fi
     
-    # 修复日志路径 - 使用相对路径避免权限问题
-    silent_exec sed -i "s|logs/.*\.log|${DEPLOY_PATH}/logs/${service_name}.log|g" ${DEPLOY_PATH}/configs/${config_file}
-    log_info "日志路径已更新为: ${DEPLOY_PATH}/logs/${service_name}.log"
+    # 修复日志路径
+    silent_exec sed -i "s|logs/.*\.log|${DEPLOY_PATH}/logs/${SERVICE_NAME}.log|g" ${DEPLOY_PATH}/configs/gateway.yaml
+    log_info "日志路径已更新为: ${DEPLOY_PATH}/logs/${SERVICE_NAME}.log"
     
     # 构建应用
     log_info "构建应用..."
-    cd ${DEPLOY_PATH}/${service_path}
+    cd ${DEPLOY_PATH}/services/gateway
     
     export GOOS=linux
     export GOARCH=amd64
@@ -56,9 +51,9 @@ deploy_service() {
     
     # 静默执行go命令
     silent_exec go mod download
-    silent_exec go build -ldflags="-s -w" -o ${service_name} .
+    silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} .
     
-    if [ ! -f "${service_name}" ]; then
+    if [ ! -f "${SERVICE_NAME}" ]; then
         log_error "应用构建失败"
         exit 1
     fi
@@ -67,17 +62,17 @@ deploy_service() {
     # 创建systemd服务文件
     log_info "创建systemd服务文件..."
     
-    cat > /etc/systemd/system/${service_name}.service << EOF
+    cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
 [Unit]
-Description=Blog System ${service_name}
+Description=Blog System ${SERVICE_NAME}
 After=network.target
 
 [Service]
 Type=simple
 User=root
 Group=root
-WorkingDirectory=${DEPLOY_PATH}/${service_path}
-ExecStart=${DEPLOY_PATH}/${service_path}/${service_name}
+WorkingDirectory=${DEPLOY_PATH}/services/gateway
+ExecStart=${DEPLOY_PATH}/services/gateway/${SERVICE_NAME}
 Restart=always
 RestartSec=3
 StandardOutput=journal
@@ -88,28 +83,28 @@ WantedBy=multi-user.target
 EOF
 
     # 设置权限
-    silent_exec chmod +x ${DEPLOY_PATH}/${service_path}/${service_name}
-    silent_exec chmod 644 /etc/systemd/system/${service_name}.service
+    silent_exec chmod +x ${DEPLOY_PATH}/services/gateway/${SERVICE_NAME}
+    silent_exec chmod 644 /etc/systemd/system/${SERVICE_NAME}.service
     
     # 重新加载systemd并启动服务
     silent_exec systemctl daemon-reload
-    silent_exec systemctl enable ${service_name}
-    silent_exec systemctl start ${service_name}
+    silent_exec systemctl enable ${SERVICE_NAME}
+    silent_exec systemctl start ${SERVICE_NAME}
     
     # 等待服务启动
     sleep 8
     
     # 检查服务状态
-    if systemctl is-active --quiet ${service_name}; then
-        log_info "${service_name} 启动成功"
+    if systemctl is-active --quiet ${SERVICE_NAME}; then
+        log_info "${SERVICE_NAME} 启动成功"
     else
-        log_error "${service_name} 启动失败"
+        log_error "${SERVICE_NAME} 启动失败"
         echo "=== 服务状态 ==="
-        systemctl status ${service_name} --no-pager -l
+        systemctl status ${SERVICE_NAME} --no-pager -l
         echo "=== 服务日志 ==="
-        journalctl -u ${service_name} --no-pager -l
+        journalctl -u ${SERVICE_NAME} --no-pager -l
         echo "=== 配置文件内容 ==="
-        cat ${DEPLOY_PATH}/configs/${config_file}
+        cat ${DEPLOY_PATH}/configs/gateway.yaml
         echo "=== 日志文件 ==="
         ls -la ${DEPLOY_PATH}/logs/ || echo "日志目录不存在"
         exit 1
@@ -131,9 +126,28 @@ check_port() {
     fi
 }
 
+# 检查依赖服务
+check_dependencies() {
+    log_info "检查依赖服务..."
+    
+    # 检查用户服务是否运行
+    if ! systemctl is-active --quiet user-service; then
+        log_error "用户服务未运行，请先部署用户服务"
+        exit 1
+    fi
+    
+    # 检查用户服务端口
+    if ! silent_exec netstat -tlnp | silent_exec grep -q ":8001"; then
+        log_error "用户服务端口8001未监听，请检查用户服务"
+        exit 1
+    fi
+    
+    log_info "依赖服务检查通过"
+}
+
 # 主函数
 main() {
-    log_info "开始部署 Blog System..."
+    log_info "开始部署网关服务..."
     
     # 检查是否为root用户
     if [ "$EUID" -ne 0 ]; then
@@ -163,20 +177,16 @@ main() {
         fi
     done
     
-    # 部署用户服务
-    deploy_service "user-service" "services/user" "user.yaml"
-    
-    # 检查用户服务端口
-    check_port 8001 "用户服务"
+    # 检查依赖服务
+    check_dependencies
     
     # 部署网关服务
-    deploy_service "gateway-service" "services/gateway" "gateway.yaml"
+    deploy_gateway_service
     
     # 检查网关服务端口
     check_port 8000 "网关服务"
     
-    log_info "部署完成！"
-    log_info "用户服务地址: http://$(hostname -I | awk '{print $1}'):8001"
+    log_info "网关服务部署完成！"
     log_info "网关服务地址: http://$(hostname -I | awk '{print $1}'):8000"
     log_info "日志文件: ${DEPLOY_PATH}/logs/"
 }
