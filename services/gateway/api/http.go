@@ -1,0 +1,159 @@
+package api
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"time"
+
+	"blog-system/common/pkg/logger"
+	"blog-system/services/gateway/application"
+	"blog-system/services/gateway/domain"
+
+	"github.com/CoucouMonEcho/go-framework/web"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/recover"
+)
+
+// HTTPServer HTTP服务器
+type HTTPServer struct {
+	gatewayService *application.GatewayService
+	logger         logger.Logger
+	server         *web.HTTPServer
+}
+
+// NewHTTPServer 创建HTTP服务器
+func NewHTTPServer(gatewayService *application.GatewayService, logger logger.Logger) *HTTPServer {
+	// 使用go-framework的recover中间件
+	recoverMiddleware := recover.MiddlewareBuilder{
+		Code: http.StatusInternalServerError,
+		Data: []byte("Internal Server Error"),
+		Log: func(ctx *web.Context) {
+			logger.LogWithContext("gateway-service", "recover", "ERROR", "服务恢复中间件触发")
+		},
+	}.Build()
+
+	server := web.NewHTTPServer(
+		web.ServerWithMiddlewares(
+			recoverMiddleware,
+			loggerMiddleware(logger),
+			corsMiddleware(),
+		),
+	)
+
+	return &HTTPServer{
+		gatewayService: gatewayService,
+		logger:         logger,
+		server:         server,
+	}
+}
+
+// Run 启动HTTP服务器
+func (s *HTTPServer) Run(addr string) error {
+	// 注册路由
+	s.server.Get("/health", healthHandler(s.logger))
+	s.server.Post("/api/*", proxyHandler(s.gatewayService, s.logger))
+	s.server.Get("/api/*", proxyHandler(s.gatewayService, s.logger))
+
+	return s.server.Start(addr)
+}
+
+// loggerMiddleware 日志中间件
+func loggerMiddleware(logger logger.Logger) web.Middleware {
+	return func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			start := time.Now()
+
+			next(ctx)
+
+			logger.LogWithContext("gateway-service", "http", "INFO",
+				"请求: %s %s %d %s %s",
+				ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
+		}
+	}
+}
+
+// corsMiddleware CORS中间件
+func corsMiddleware() web.Middleware {
+	return func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			ctx.Resp.Header().Set("Access-Control-Allow-Origin", "*")
+			ctx.Resp.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			ctx.Resp.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+			if ctx.Req.Method == "OPTIONS" {
+				_ = ctx.RespJSON(http.StatusNoContent, "")
+				return
+			}
+
+			next(ctx)
+		}
+	}
+}
+
+// healthHandler 健康检查处理器
+func healthHandler(logger logger.Logger) web.Handler {
+	return func(ctx *web.Context) {
+		logger.LogWithContext("gateway-service", "health", "INFO", "健康检查请求")
+		_ = ctx.RespJSON(http.StatusOK, map[string]interface{}{
+			"status":  "ok",
+			"service": "gateway",
+			"message": "Gateway service is healthy",
+		})
+	}
+}
+
+// proxyHandler 代理处理器
+func proxyHandler(gatewayService *application.GatewayService, logger logger.Logger) web.Handler {
+	return func(ctx *web.Context) {
+		// 获取客户端IP
+		clientIP := ctx.Req.RemoteAddr
+		if clientIP == "" {
+			clientIP = "unknown"
+		}
+
+		// 读取请求体
+		body, err := io.ReadAll(ctx.Req.Body)
+		if err != nil {
+			logger.LogWithContext("gateway-service", "proxy", "ERROR", "读取请求体失败: %v", err)
+			_ = ctx.RespJSON(http.StatusBadRequest, map[string]interface{}{"error": "读取请求体失败"})
+			return
+		}
+
+		// 构建代理请求
+		proxyReq := &domain.ProxyRequest{
+			Method:  ctx.Req.Method,
+			Path:    ctx.Req.URL.Path,
+			Headers: ctx.Req.Header,
+			Body:    body,
+			Client:  clientIP,
+		}
+
+		// 记录请求日志
+		logger.LogWithContext("gateway-service", "proxy", "INFO",
+			"代理请求: %s %s -> %s", proxyReq.Method, proxyReq.Path, clientIP)
+
+		// 执行代理请求
+		reqCtx := context.Background()
+		resp, err := gatewayService.ProxyRequest(reqCtx, proxyReq)
+		if err != nil {
+			logger.LogWithContext("gateway-service", "proxy", "ERROR", "代理请求失败: %v", err)
+			_ = ctx.RespJSON(http.StatusInternalServerError, map[string]interface{}{"error": "代理请求失败"})
+			return
+		}
+
+		// 设置响应头
+		for key, values := range resp.Headers {
+			for _, value := range values {
+				ctx.Resp.Header().Set(key, value)
+			}
+		}
+
+		// 设置状态码和响应体
+		ctx.RespCode = resp.StatusCode
+		ctx.RespData = resp.Body
+
+		// 记录响应日志
+		logger.LogWithContext("gateway-service", "proxy", "INFO",
+			"代理响应: %s %s -> %d", proxyReq.Method, proxyReq.Path, resp.StatusCode)
+	}
+}

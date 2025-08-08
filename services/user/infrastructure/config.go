@@ -7,6 +7,18 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// RedisClusterConfig Redis集群配置
+type RedisClusterConfig struct {
+	Addrs        []string `yaml:"addrs"`
+	Password     string   `yaml:"password"`
+	PoolSize     int      `yaml:"pool_size"`
+	MinIdleConns int      `yaml:"min_idle_conns"`
+	MaxRetries   int      `yaml:"max_retries"`
+	DialTimeout  string   `yaml:"dial_timeout"`
+	ReadTimeout  string   `yaml:"read_timeout"`
+	WriteTimeout string   `yaml:"write_timeout"`
+}
+
 // AppConfig 映射 user.yaml
 type AppConfig struct {
 	App struct {
@@ -22,8 +34,8 @@ type AppConfig struct {
 		Name     string `yaml:"name"`
 	} `yaml:"database"`
 	Redis struct {
-		Addr     string `yaml:"addr"`
-		Password string `yaml:"password"`
+		// Redis Cluster配置
+		Cluster RedisClusterConfig `yaml:"cluster"`
 	} `yaml:"redis"`
 	Grpc struct {
 		Port int `yaml:"port"`

@@ -11,8 +11,20 @@ database:
   name: blog_user
 
 redis:
-  addr: 127.0.0.1:7001
-  password: ""
+  # Redis Cluster配置 - 生产环境使用集群模式
+  cluster:
+    addrs:
+      - "127.0.0.1:7001"
+      - "127.0.0.1:7002"
+      - "127.0.0.1:7003"
+    password: ""
+    # 集群配置选项
+    pool_size: 10
+    min_idle_conns: 5
+    max_retries: 3
+    dial_timeout: "5s"
+    read_timeout: "3s"
+    write_timeout: "3s"
 
 grpc:
   port: 9001

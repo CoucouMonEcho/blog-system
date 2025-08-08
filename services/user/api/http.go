@@ -11,45 +11,45 @@ import (
 	"github.com/CoucouMonEcho/go-framework/web"
 )
 
-// HTTPServer HTTP 服务器
-type HTTPServer struct {
+// Controller HTTP 服务器
+type Controller struct {
 	userService *application.UserAppService
-	engine      *web.HTTPServer
+	server      *web.HTTPServer
 }
 
 // NewHTTPServer 创建 HTTP 服务器
-func NewHTTPServer(userService *application.UserAppService) *HTTPServer {
+func NewHTTPServer(userService *application.UserAppService) *Controller {
 	//TODO middleware
-	engine := web.NewHTTPServer()
-	server := &HTTPServer{
+	server := web.NewHTTPServer()
+	controller := &Controller{
 		userService: userService,
-		engine:      engine,
+		server:      server,
 	}
-	server.registerRoutes()
-	return server
+	controller.registerRoutes()
+	return controller
 }
 
 // registerRoutes 注册路由
-func (server *HTTPServer) registerRoutes() {
+func (c *Controller) registerRoutes() {
 	// 健康检查
-	server.engine.Get("/health", server.HealthCheck)
+	c.server.Get("/health", c.HealthCheck)
 
 	// 公开接口
-	server.engine.Post("/api/register", server.Register)
-	server.engine.Post("/api/login", server.Login)
+	c.server.Post("/api/register", c.Register)
+	c.server.Post("/api/login", c.Login)
 
 	// 需要认证的接口
-	server.engine.Use(http.MethodGet, "/user/*", server.AuthMiddleware())
+	c.server.Use(http.MethodGet, "/user/*", c.AuthMiddleware())
 	{
-		server.engine.Get("/user/info/:user_id", server.GetUserInfo)
-		server.engine.Post("/user/info/:user_id", server.UpdateUserInfo)
-		server.engine.Post("/user/password/:user_id", server.ChangePassword)
+		c.server.Get("/user/info/:user_id", c.GetUserInfo)
+		c.server.Post("/user/info", c.UpdateUserInfo)
+		c.server.Post("/user/password", c.ChangePassword)
 	}
 }
 
 // HealthCheck 健康检查
-func (server *HTTPServer) HealthCheck(c *web.Context) {
-	_ = c.RespJSONOK(dto.Success(map[string]any{
+func (c *Controller) HealthCheck(ctx *web.Context) {
+	_ = ctx.RespJSONOK(dto.Success(map[string]any{
 		"status":    "ok",
 		"service":   "user-service",
 		"timestamp": time.Now().Unix(),
@@ -57,80 +57,80 @@ func (server *HTTPServer) HealthCheck(c *web.Context) {
 }
 
 // Register 用户注册
-func (server *HTTPServer) Register(c *web.Context) {
+func (c *Controller) Register(ctx *web.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required,min=3,max=20"`
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required,min=6"`
 	}
 
-	if err := c.BindJSON(&req); err != nil {
-		_ = c.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
+	if err := ctx.BindJSON(&req); err != nil {
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
-	user, err := server.userService.Register(c.Req.Context(), req.Username, req.Email, req.Password)
+	user, err := c.userService.Register(ctx.Req.Context(), req.Username, req.Email, req.Password)
 	if err != nil {
-		_ = c.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrUserExists, err.Error()))
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrUserExists, err.Error()))
 		return
 	}
 
-	_ = c.RespJSONOK(dto.Success(user))
+	_ = ctx.RespJSONOK(dto.Success(user))
 }
 
 // Login 用户登录
-func (server *HTTPServer) Login(c *web.Context) {
+func (c *Controller) Login(ctx *web.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
 
-	if err := c.BindJSON(&req); err != nil {
-		_ = c.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
+	if err := ctx.BindJSON(&req); err != nil {
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
-	user, err := server.userService.Login(c.Req.Context(), req.Username, req.Password)
+	user, err := c.userService.Login(ctx.Req.Context(), req.Username, req.Password)
 	if err != nil {
-		_ = c.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
+		_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
 		return
 	}
 
 	// 生成 JWT 令牌
 	token, err := util.GenerateToken(user.ID, user.Role)
 	if err != nil {
-		_ = c.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, "生成令牌失败"))
+		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, "生成令牌失败"))
 		return
 	}
 
-	_ = c.RespJSONOK(dto.Success(map[string]any{
+	_ = ctx.RespJSONOK(dto.Success(map[string]any{
 		"token": token,
 		"user":  user,
 	}))
 }
 
 // GetUserInfo 获取用户信息
-func (server *HTTPServer) GetUserInfo(c *web.Context) {
-	userID, err := c.PathValue("user_id").AsInt64()
+func (c *Controller) GetUserInfo(ctx *web.Context) {
+	userID, err := ctx.PathValue("user_id").AsInt64()
 	if err != nil {
-		_ = c.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
-	user, err := server.userService.GetUserInfo(c.Req.Context(), userID)
+	user, err := c.userService.GetUserInfo(ctx.Req.Context(), userID)
 	if err != nil {
-		_ = c.RespJSON(http.StatusNotFound, dto.Error(errcode.ErrUserNotFound, err.Error()))
+		_ = ctx.RespJSON(http.StatusNotFound, dto.Error(errcode.ErrUserNotFound, err.Error()))
 		return
 	}
 
-	_ = c.RespJSONOK(dto.Success(user))
+	_ = ctx.RespJSONOK(dto.Success(user))
 }
 
 // UpdateUserInfo 更新用户信息
-func (server *HTTPServer) UpdateUserInfo(c *web.Context) {
-	userID, err := c.PathValue("user_id").AsInt64()
+func (c *Controller) UpdateUserInfo(ctx *web.Context) {
+	userID, err := ctx.PathValue("user_id").AsInt64()
 	if err != nil {
-		_ = c.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
@@ -140,8 +140,8 @@ func (server *HTTPServer) UpdateUserInfo(c *web.Context) {
 		Avatar   string `json:"avatar,omitempty"`
 	}
 
-	if err := c.BindJSON(&req); err != nil {
-		_ = c.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
+	if err := ctx.BindJSON(&req); err != nil {
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
@@ -156,19 +156,19 @@ func (server *HTTPServer) UpdateUserInfo(c *web.Context) {
 		updates["avatar"] = req.Avatar
 	}
 
-	if err := server.userService.UpdateUserInfo(c.Req.Context(), userID, updates); err != nil {
-		_ = c.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
+	if err := c.userService.UpdateUserInfo(ctx.Req.Context(), userID, updates); err != nil {
+		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
 	}
 
-	_ = c.RespJSONOK(dto.SuccessNil())
+	_ = ctx.RespJSONOK(dto.SuccessNil())
 }
 
 // ChangePassword 修改密码
-func (server *HTTPServer) ChangePassword(c *web.Context) {
-	userID, err := c.PathValue("user_id").AsInt64()
+func (c *Controller) ChangePassword(ctx *web.Context) {
+	userID, err := ctx.PathValue("user_id").AsInt64()
 	if err != nil {
-		_ = c.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
@@ -177,26 +177,26 @@ func (server *HTTPServer) ChangePassword(c *web.Context) {
 		NewPassword string `json:"new_password" binding:"required,min=6"`
 	}
 
-	if err := c.BindJSON(&req); err != nil {
-		_ = c.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
+	if err := ctx.BindJSON(&req); err != nil {
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
-	if err := server.userService.ChangePassword(c.Req.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
-		_ = c.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
+	if err := c.userService.ChangePassword(ctx.Req.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
 		return
 	}
 
-	_ = c.RespJSONOK(dto.SuccessNil())
+	_ = ctx.RespJSONOK(dto.SuccessNil())
 }
 
 // AuthMiddleware JWT 认证中间件
-func (server *HTTPServer) AuthMiddleware() web.Middleware {
+func (c *Controller) AuthMiddleware() web.Middleware {
 	return func(next web.Handler) web.Handler {
-		return func(c *web.Context) {
-			token := c.Req.Header.Get("Authorization")
+		return func(ctx *web.Context) {
+			token := ctx.Req.Header.Get("Authorization")
 			if token == "" {
-				_ = c.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrUnauthorized, "缺少认证令牌"))
+				_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrUnauthorized, "缺少认证令牌"))
 				return
 			}
 
@@ -207,21 +207,21 @@ func (server *HTTPServer) AuthMiddleware() web.Middleware {
 
 			claims, err := util.ParseToken(token)
 			if err != nil {
-				_ = c.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrTokenInvalid, "无效的认证令牌"))
+				_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrTokenInvalid, "无效的认证令牌"))
 				return
 			}
 
 			// 存储用户信息
-			c.UserValues["user_id"] = claims.UserID
-			c.UserValues["user_role"] = claims.Role
+			ctx.UserValues["user_id"] = claims.UserID
+			ctx.UserValues["user_role"] = claims.Role
 
 			// next
-			next(c)
+			next(ctx)
 		}
 	}
 }
 
 // Run 启动服务器
-func (server *HTTPServer) Run(addr string) error {
-	return server.engine.Start(addr)
+func (c *Controller) Run(addr string) error {
+	return c.server.Start(addr)
 }
