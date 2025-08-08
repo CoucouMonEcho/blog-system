@@ -1,8 +1,8 @@
 package main
 
 import (
+	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"blog-system/common/pkg/logger"
@@ -12,41 +12,54 @@ import (
 )
 
 func main() {
-	// 加载配置
-	configPath := filepath.Join("../../..", "configs", "user.yaml")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// 使用默认配置路径
+	// 加载配置 - 修复路径问题
+	var configPath string
+
+	// 优先使用绝对路径（部署环境）
+	if _, err := os.Stat("/opt/blog-system/configs/user.yaml"); err == nil {
+		configPath = "/opt/blog-system/configs/user.yaml"
+	} else if _, err := os.Stat("../../configs/user.yaml"); err == nil {
+		// 开发环境
+		configPath = "../../configs/user.yaml"
+	} else {
+		// fallback到相对路径
 		configPath = "configs/user.yaml"
 	}
+
+	log.Printf("使用配置文件: %s", configPath)
+
 	cfg, err := infrastructure.LoadConfig(configPath)
 	if err != nil {
-		panic("加载配置失败: " + err.Error())
+		log.Fatalf("加载配置失败: %v", err)
 	}
 
 	// 初始化日志系统
 	loggerInstance, err := logger.NewLogger(&cfg.Log)
 	if err != nil {
-		panic("初始化日志系统失败: " + err.Error())
+		log.Fatalf("初始化日志系统失败: %v", err)
 	}
 
 	// 记录服务启动日志
 	loggerInstance.LogWithContext("user-service", "main", "INFO", "开始启动用户服务")
+	loggerInstance.LogWithContext("user-service", "main", "INFO", "配置文件: %s", configPath)
 
-	// 初始化数据库连接
+	// 初始化数据库连接 - 添加错误处理但不退出
 	db, err := infrastructure.InitDB(cfg)
 	if err != nil {
-		loggerInstance.LogWithContext("user-service", "database", "FATAL", "数据库连接失败: %v", err)
+		loggerInstance.LogWithContext("user-service", "database", "ERROR", "数据库连接失败: %v", err)
+		loggerInstance.LogWithContext("user-service", "database", "WARN", "数据库连接失败，但继续启动服务")
+	} else {
+		loggerInstance.LogWithContext("user-service", "database", "INFO", "数据库连接成功")
 	}
 
-	loggerInstance.LogWithContext("user-service", "database", "INFO", "数据库连接成功")
-
-	// 初始化缓存
+	// 初始化缓存 - 添加错误处理但不退出
 	cache, err := infrastructure.InitCache(cfg)
 	if err != nil {
-		loggerInstance.LogWithContext("user-service", "cache", "FATAL", "缓存连接失败: %v", err)
+		loggerInstance.LogWithContext("user-service", "cache", "ERROR", "缓存连接失败: %v", err)
+		loggerInstance.LogWithContext("user-service", "cache", "WARN", "缓存连接失败，但继续启动服务")
+	} else {
+		loggerInstance.LogWithContext("user-service", "cache", "INFO", "缓存连接成功")
 	}
-
-	loggerInstance.LogWithContext("user-service", "cache", "INFO", "缓存连接成功")
 
 	// 初始化仓储层
 	userRepo := infrastructure.NewUserRepository(db)
