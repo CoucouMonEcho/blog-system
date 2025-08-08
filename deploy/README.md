@@ -2,7 +2,7 @@
 
 ## 概述
 
-本项目采用DDD微服务架构，支持模块化部署和完整部署两种方式。
+本项目采用DDD微服务架构，使用统一的GitHub Actions工作流进行部署。
 
 ## 部署架构
 
@@ -19,25 +19,24 @@ Gateway Service (8000)
 Admin Service (待开发)
 ```
 
-### 工作流文件
+### 统一工作流
 
-1. **deploy-common.yml** - 部署公共模块
-   - 触发条件：common目录变更
-   - 功能：上传common模块到服务器
+**deploy.yml** - 统一部署工作流，包含3个job：
 
-2. **deploy-user-service.yml** - 部署用户服务
-   - 触发条件：user服务或common模块变更
-   - 依赖：common模块
-   - 功能：部署用户服务到8001端口
+1. **deploy-common** - 部署公共模块
+   - 上传common模块到服务器
+   - 验证部署成功
 
-3. **deploy-gateway-service.yml** - 部署网关服务
-   - 触发条件：gateway服务或common模块变更
-   - 依赖：user服务
-   - 功能：部署网关服务到8000端口
+2. **deploy-user-service** - 部署用户服务
+   - 依赖：deploy-common
+   - 部署用户服务到8001端口
+   - 验证服务启动
 
-4. **deploy.yml** - 完整部署
-   - 触发条件：其他文件变更（排除单独服务）
-   - 功能：部署所有服务
+3. **deploy-gateway-service** - 部署网关服务
+   - 依赖：deploy-user-service
+   - 检查用户服务依赖
+   - 部署网关服务到8000端口
+   - 验证服务启动
 
 ## 部署脚本
 
@@ -62,6 +61,10 @@ Admin Service (待开发)
    - 统一管理所有部署操作
    - 支持服务状态查看
    - 支持服务重启/停止/更新
+
+5. **test-deploy.sh** - 测试部署脚本
+   - 用于验证部署过程
+   - 测试构建、配置、服务启动
 
 ### 管理脚本用法
 
@@ -117,31 +120,30 @@ Admin Service (待开发)
 
 ## 部署流程
 
-### 模块化部署（推荐）
+### 自动部署
 
-1. **部署公共模块**
-   ```bash
-   # 通过GitHub Actions自动触发
-   # 或手动触发 deploy-common.yml
-   ```
+1. **推送代码到main分支**
+   - 自动触发统一部署工作流
+   - 按依赖顺序执行各个job
 
-2. **部署用户服务**
-   ```bash
-   # 通过GitHub Actions自动触发
-   # 或手动触发 deploy-user-service.yml
-   ```
+2. **手动触发**
+   - 在GitHub Actions页面手动触发部署
+   - 适用于紧急部署或测试
 
-3. **部署网关服务**
-   ```bash
-   # 通过GitHub Actions自动触发
-   # 或手动触发 deploy-gateway-service.yml
-   ```
-
-### 完整部署
+### 服务器管理
 
 ```bash
-# 通过GitHub Actions自动触发
-# 或手动触发 deploy.yml
+# 查看所有服务状态
+./manage-deploy.sh -s
+
+# 重启特定服务
+./manage-deploy.sh -r user
+
+# 更新特定服务
+./manage-deploy.sh -u gateway
+
+# 停止所有服务
+./manage-deploy.sh -t all
 ```
 
 ## 验证部署
@@ -189,6 +191,10 @@ curl http://localhost:8000/health
    - 检查依赖服务状态
    - 重新启动依赖服务
 
+4. **权限问题**
+   - 确保脚本有执行权限：`chmod +x deploy/*.sh`
+   - 检查文件权限设置
+
 ### 日志位置
 
 - **服务日志**: `/opt/blog-system/logs/`
@@ -227,4 +233,45 @@ curl http://localhost:8000/health
 3. **监控优化**
    - 配置服务监控
    - 设置告警机制
-   - 定期检查性能指标 
+   - 定期检查性能指标
+
+## 测试部署
+
+### 使用测试脚本
+
+```bash
+# 运行测试部署
+./test-deploy.sh
+
+# 测试特定服务
+./deploy/deploy-user-service.sh
+```
+
+### 验证步骤
+
+1. **构建测试**
+   - 检查go.mod文件
+   - 下载依赖
+   - 构建应用
+
+2. **配置测试**
+   - 检查配置文件存在
+   - 验证配置格式
+
+3. **服务测试**
+   - 创建systemd服务
+   - 启动服务
+   - 验证服务状态
+
+## 更新日志
+
+### v2.0.0 (当前版本)
+- 统一部署工作流，使用3个job
+- 优化日志输出，消除无用信息
+- 修复权限问题
+- 添加依赖检查机制
+- 改进错误处理
+
+### v1.0.0
+- 初始部署脚本
+- 基础服务部署功能 

@@ -17,9 +17,14 @@ log_error() {
     echo "[ERROR] $1"
 }
 
-# 静默执行函数
+# 静默执行函数 - 完全抑制输出
 silent_exec() {
     "$@" >/dev/null 2>&1
+}
+
+# 静默执行函数 - 只抑制标准输出
+silent_exec_stdout() {
+    "$@" >/dev/null
 }
 
 # 部署用户服务
