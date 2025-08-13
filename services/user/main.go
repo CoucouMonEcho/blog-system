@@ -70,7 +70,7 @@ func main() {
 	loggerInstance.LogWithContext("user-service", "application", "INFO", "用户应用服务初始化完成")
 
 	// 启动 HTTP 服务
-	server := api.NewHTTPServer(userService)
+	server := api.NewHTTPServer(userService, loggerInstance)
 	loggerInstance.LogWithContext("user-service", "api", "INFO", "HTTP服务器初始化完成")
 
 	// 注册到注册中心

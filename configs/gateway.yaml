@@ -62,11 +62,11 @@ redis:
     read_timeout: "3s"
     write_timeout: "3s"
 
-# 日志配置
 registry:
   endpoints:
     - "http://127.0.0.1:2379"
 
 log:
   level: info
-  path: logs/gateway.log 
+  # 实际路径由部署脚本决定
+  path: logs/gateway-service.log

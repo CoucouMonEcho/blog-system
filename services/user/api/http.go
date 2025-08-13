@@ -3,6 +3,7 @@ package api
 import (
 	"blog-system/common/pkg/dto"
 	"blog-system/common/pkg/errcode"
+	"blog-system/common/pkg/logger"
 	"blog-system/common/pkg/util"
 	"blog-system/services/user/application"
 	"net/http"
@@ -18,9 +19,23 @@ type Controller struct {
 }
 
 // NewHTTPServer 创建 HTTP 服务器
-func NewHTTPServer(userService *application.UserAppService) *Controller {
-	//TODO middleware
-	server := web.NewHTTPServer()
+func NewHTTPServer(userService *application.UserAppService, lgr logger.Logger) *Controller {
+	// 统一的请求日志中间件（与 gateway 风格一致）
+	requestLogger := func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			start := time.Now()
+			next(ctx)
+			lgr.LogWithContext("user-service", "http", "INFO",
+				"请求: %s %s %d %s %s",
+				ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
+		}
+	}
+
+	server := web.NewHTTPServer(
+		web.ServerWithMiddlewares(
+			requestLogger,
+		),
+	)
 	controller := &Controller{
 		userService: userService,
 		server:      server,

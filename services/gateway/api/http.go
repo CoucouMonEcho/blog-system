@@ -51,8 +51,8 @@ func NewHTTPServer(gatewayService *application.GatewayService, logger logger.Log
 func (s *HTTPServer) Run(addr string) error {
 	// 注册路由
 	s.server.Get("/health", healthHandler(s.logger))
-	s.server.Post("/*", proxyHandler(s.gatewayService, s.logger))
-	s.server.Get("/*", proxyHandler(s.gatewayService, s.logger))
+	s.server.Post("/api/*", proxyHandler(s.gatewayService, s.logger))
+	s.server.Get("/api/*", proxyHandler(s.gatewayService, s.logger))
 
 	return s.server.Start(addr)
 }
@@ -93,7 +93,6 @@ func corsMiddleware() web.Middleware {
 // healthHandler 健康检查处理器
 func healthHandler(logger logger.Logger) web.Handler {
 	return func(ctx *web.Context) {
-		logger.LogWithContext("gateway-service", "health", "INFO", "健康检查请求")
 		_ = ctx.RespJSON(http.StatusOK, map[string]interface{}{
 			"status":  "ok",
 			"service": "gateway",
@@ -128,10 +127,6 @@ func proxyHandler(gatewayService *application.GatewayService, logger logger.Logg
 			Client:  clientIP,
 		}
 
-		// 记录请求日志
-		logger.LogWithContext("gateway-service", "proxy", "INFO",
-			"代理请求: %s %s -> %s", proxyReq.Method, proxyReq.Path, clientIP)
-
 		// 执行代理请求
 		reqCtx := context.Background()
 		resp, err := gatewayService.ProxyRequest(reqCtx, proxyReq)
@@ -151,9 +146,5 @@ func proxyHandler(gatewayService *application.GatewayService, logger logger.Logg
 		// 设置状态码和响应体
 		ctx.RespCode = resp.StatusCode
 		ctx.RespData = resp.Body
-
-		// 记录响应日志
-		logger.LogWithContext("gateway-service", "proxy", "INFO",
-			"代理响应: %s %s -> %d", proxyReq.Method, proxyReq.Path, resp.StatusCode)
 	}
 }
