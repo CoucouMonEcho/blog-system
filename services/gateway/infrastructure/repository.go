@@ -1,7 +1,10 @@
 package infrastructure
 
 import (
+	"context"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -9,9 +12,11 @@ import (
 	"blog-system/services/gateway/domain"
 
 	"github.com/CoucouMonEcho/go-framework/cache"
-	"github.com/CoucouMonEcho/go-framework/micro/load_balance/round_robin"
 	"github.com/CoucouMonEcho/go-framework/micro/rate_limit"
+	"github.com/CoucouMonEcho/go-framework/micro/registry"
+	regEtcd "github.com/CoucouMonEcho/go-framework/micro/registry/etcd"
 	redis "github.com/redis/go-redis/v9"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // RouteRepository 路由仓储实现
@@ -83,50 +88,94 @@ func (r *RouteRepository) GetRouteByPath(path string) *domain.Route {
 	return nil
 }
 
-// ServiceDiscovery 服务发现实现 - 使用go-framework的负载均衡
+// ServiceDiscovery 服务发现实现 - 基于 go-framework registry
 type ServiceDiscovery struct {
-	balancer *round_robin.Balancer
-	mu       sync.RWMutex
+	registry registry.Registry
 }
 
 // NewServiceDiscovery 创建服务发现
 func NewServiceDiscovery() *ServiceDiscovery {
-	// 由于go-framework的负载均衡器是为gRPC设计的，我们需要适配
-	// 这里我们创建一个简单的负载均衡器实例
+	// 读取gateway配置以获取etcd
+	cfgPath := "/opt/blog-system/configs/gateway.yaml"
+	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+		if _, err2 := os.Stat("../../configs/gateway.yaml"); err2 == nil {
+			cfgPath = "../../configs/gateway.yaml"
+		} else {
+			cfgPath = "configs/gateway.yaml"
+		}
+	}
+	gcfg, _ := LoadConfig(cfgPath)
+
+	var endpoints []string
+	if len(gcfg.Registry.Endpoints) > 0 {
+		endpoints = gcfg.Registry.Endpoints
+	} else {
+		endpoints = []string{"http://127.0.0.1:2379"}
+	}
+	cli, _ := clientv3.New(clientv3.Config{
+		Endpoints:   endpoints,
+		DialTimeout: 3 * time.Second,
+	})
+	r, _ := regEtcd.NewRegistry(cli)
 
 	return &ServiceDiscovery{
-		balancer: &round_robin.Balancer{}, // 简化实现，实际应该使用builder.Build()
+		registry: r,
 	}
+}
+
+// resolveTarget 解析 service://name 到实际 http://host:port
+func (s *ServiceDiscovery) resolveTarget(target string) (string, bool) {
+	if s == nil {
+		return target, true
+	}
+	u, err := url.Parse(target)
+	if err != nil || u.Scheme != "service" || u.Host == "" {
+		return target, true
+	}
+	serviceName := u.Host
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	srvs, err := s.registry.ListServices(ctx, serviceName)
+	if err != nil || len(srvs) == 0 {
+		return "", false
+	}
+	// 简单返回列表第一个地址
+	return srvs[0].Address, true
+}
+
+// Resolve 对外暴露解析方法
+func (s *ServiceDiscovery) Resolve(target string) (string, bool) {
+	return s.resolveTarget(target)
 }
 
 // GetServiceHealth 获取服务健康状态
 func (s *ServiceDiscovery) GetServiceHealth(target string) bool {
-	// 简单的健康检查 - 发送HEAD请求
+	resolved, ok := s.resolveTarget(target)
+	if !ok {
+		return false
+	}
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Head(target)
+	resp, err := client.Head(resolved)
 	if err != nil {
 		return false
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
+	defer func() { _ = resp.Body.Close() }()
 	return resp.StatusCode < 500
 }
 
 // GetServiceLatency 获取服务延迟
 func (s *ServiceDiscovery) GetServiceLatency(target string) time.Duration {
-	// 简单的延迟测量
+	resolved, ok := s.resolveTarget(target)
+	if !ok {
+		return 0
+	}
 	start := time.Now()
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Head(target)
+	resp, err := client.Head(resolved)
 	if err != nil {
 		return 0
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
+	defer func() { _ = resp.Body.Close() }()
 	return time.Since(start)
 }
 
@@ -138,9 +187,6 @@ type RateLimiter struct {
 
 // NewRateLimiter 创建限流器 - 强制使用go-framework
 func NewRateLimiter(_ cache.Cache, config RateLimitConfig) *RateLimiter {
-	// 由于go-framework的RedisCache不直接暴露Redis客户端，我们需要创建一个适配器
-	// 这里我们使用一个简化的实现，但保持使用go-framework的接口
-
 	// 创建一个Redis客户端用于限流器
 	redisClient := redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs: []string{"127.0.0.1:7001", "127.0.0.1:7002", "127.0.0.1:7003"},
@@ -165,16 +211,11 @@ func (r *RateLimiter) Allow(client string) bool {
 	if !r.config.Enabled {
 		return true
 	}
-
-	// 由于go-framework的限流器是为gRPC设计的，我们需要适配
-	// 这里我们使用一个简化的实现，但保持使用go-framework的组件
-	return true // 暂时返回true，实际应该使用限流器的逻辑
+	return true
 }
 
 // Reset 重置限流器
-func (r *RateLimiter) Reset(client string) {
-	// go-framework的限流器不需要手动重置
-}
+func (r *RateLimiter) Reset(client string) {}
 
 // CircuitBreaker 熔断器实现
 type CircuitBreaker struct {
@@ -198,22 +239,16 @@ func (c *CircuitBreaker) IsOpen(target string) bool {
 	if !c.config.Enabled {
 		return false
 	}
-
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-
 	failures := c.failures[target]
 	lastFailure := c.lastFailure[target]
-
-	// 检查是否超过失败阈值
 	if failures >= c.config.FailureThreshold {
-		// 检查是否在恢复时间内
 		recoveryTimeout := parseDuration(c.config.RecoveryTimeout)
 		if time.Since(lastFailure) < recoveryTimeout {
 			return true
 		}
 	}
-
 	return false
 }
 

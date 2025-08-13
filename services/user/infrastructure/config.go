@@ -40,6 +40,9 @@ type AppConfig struct {
 	Grpc struct {
 		Port int `yaml:"port"`
 	} `yaml:"grpc"`
+	Registry struct {
+		Endpoints []string `yaml:"endpoints"`
+	} `yaml:"registry"`
 	Log logger.Config `yaml:"log"`
 }
 

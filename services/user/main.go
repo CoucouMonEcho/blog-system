@@ -73,6 +73,13 @@ func main() {
 	server := api.NewHTTPServer(userService)
 	loggerInstance.LogWithContext("user-service", "api", "INFO", "HTTP服务器初始化完成")
 
+	// 注册到注册中心
+	if err := infrastructure.RegisterService(cfg); err != nil {
+		loggerInstance.LogWithContext("user-service", "registry", "ERROR", "注册到注册中心失败: %v", err)
+	} else {
+		loggerInstance.LogWithContext("user-service", "registry", "INFO", "注册中心注册成功")
+	}
+
 	addr := ":" + strconv.Itoa(cfg.App.Port)
 	loggerInstance.LogWithContext("user-service", "main", "INFO", "用户服务启动中，监听端口: %s", addr)
 

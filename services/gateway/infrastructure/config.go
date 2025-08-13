@@ -62,6 +62,9 @@ type GatewayConfig struct {
 	Redis          struct {
 		Cluster RedisClusterConfig `yaml:"cluster"`
 	} `yaml:"redis"`
+	Registry struct {
+		Endpoints []string `yaml:"endpoints"`
+	} `yaml:"registry"`
 	Log logger.Config `yaml:"log"`
 }
 

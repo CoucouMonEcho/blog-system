@@ -63,6 +63,7 @@ type RouteRepository interface {
 type ServiceDiscovery interface {
 	GetServiceHealth(target string) bool
 	GetServiceLatency(target string) time.Duration
+	Resolve(target string) (string, bool)
 }
 
 // RateLimiter 限流器接口

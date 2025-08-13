@@ -61,10 +61,18 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 		}, nil
 	}
 
-	// 4. 服务健康检查
-	if s.serviceDiscovery != nil && !s.serviceDiscovery.GetServiceHealth(route.Target) {
+	// 4. 解析 service:// 目标
+	targetStr := route.Target
+	if s.serviceDiscovery != nil {
+		if resolved, ok := s.serviceDiscovery.Resolve(route.Target); ok {
+			targetStr = resolved
+		}
+	}
+
+	// 5. 服务健康检查
+	if s.serviceDiscovery != nil && !s.serviceDiscovery.GetServiceHealth(targetStr) {
 		if s.circuitBreaker != nil {
-			s.circuitBreaker.RecordFailure(route.Target)
+			s.circuitBreaker.RecordFailure(targetStr)
 		}
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusServiceUnavailable,
@@ -72,8 +80,8 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 		}, nil
 	}
 
-	// 5. 构建目标URL
-	targetURL, err := url.Parse(route.Target)
+	// 6. 构建目标URL
+	targetURL, err := url.Parse(targetStr)
 	if err != nil {
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusInternalServerError,
@@ -81,13 +89,19 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 		}, err
 	}
 
-	// 6. 创建HTTP客户端
+	// 7. 计算转发路径：/api/{service}/x -> /api/x
+	forwardPath := req.Path
+	if strings.HasPrefix(route.Prefix, "/api/") && strings.HasPrefix(req.Path, route.Prefix) {
+		forwardPath = "/api" + strings.TrimPrefix(req.Path, route.Prefix)
+	}
+
+	// 8. 创建HTTP客户端
 	client := &http.Client{
 		Timeout: route.Timeout,
 	}
 
-	// 7. 构建请求
-	proxyReq, err := http.NewRequest(req.Method, targetURL.String()+req.Path, strings.NewReader(string(req.Body)))
+	// 9. 构建请求
+	proxyReq, err := http.NewRequest(req.Method, targetURL.String()+forwardPath, strings.NewReader(string(req.Body)))
 	if err != nil {
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusInternalServerError,
@@ -95,18 +109,18 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 		}, err
 	}
 
-	// 8. 复制请求头
+	// 10. 复制请求头
 	for key, values := range req.Headers {
 		for _, value := range values {
 			proxyReq.Header.Add(key, value)
 		}
 	}
 
-	// 9. 发送请求
+	// 11. 发送请求
 	resp, err := client.Do(proxyReq)
 	if err != nil {
 		if s.circuitBreaker != nil {
-			s.circuitBreaker.RecordFailure(route.Target)
+			s.circuitBreaker.RecordFailure(targetStr)
 		}
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusBadGateway,
@@ -115,7 +129,7 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 	}
 	defer resp.Body.Close()
 
-	// 10. 读取响应
+	// 12. 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return &domain.ProxyResponse{
@@ -124,9 +138,9 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 		}, err
 	}
 
-	// 11. 记录成功
+	// 13. 记录成功
 	if s.circuitBreaker != nil {
-		s.circuitBreaker.RecordSuccess(route.Target)
+		s.circuitBreaker.RecordSuccess(targetStr)
 	}
 
 	return &domain.ProxyResponse{

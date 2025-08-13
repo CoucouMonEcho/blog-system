@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Gateway Service 部署脚本
-set -e
+set -euo pipefail
+exec 2>&1
 
 # 配置变量
 DEPLOY_PATH="/opt/blog-system"
@@ -10,11 +11,11 @@ LOG_PATH="/var/log/blog-system"
 
 # 日志函数
 log_info() {
-    echo "[INFO] $1"
+    printf "[INFO] %s\n" "$1"
 }
 
 log_error() {
-    echo "[ERROR] $1"
+    printf "[ERROR] %s\n" "$1"
 }
 
 # 静默执行函数 - 完全抑制输出
@@ -104,14 +105,14 @@ EOF
         log_info "${SERVICE_NAME} 启动成功"
     else
         log_error "${SERVICE_NAME} 启动失败"
-        echo "=== 服务状态 ==="
+        printf "=== 服务状态 ===\n"
         systemctl status ${SERVICE_NAME} --no-pager -l
-        echo "=== 服务日志 ==="
+        printf "=== 服务日志 ===\n"
         journalctl -u ${SERVICE_NAME} --no-pager -l
-        echo "=== 配置文件内容 ==="
+        printf "=== 配置文件内容 ===\n"
         cat ${DEPLOY_PATH}/configs/gateway.yaml
-        echo "=== 日志文件 ==="
-        ls -la ${DEPLOY_PATH}/logs/ || echo "日志目录不存在"
+        printf "=== 日志文件 ===\n"
+        ls -la ${DEPLOY_PATH}/logs/ || printf "日志目录不存在\n"
         exit 1
     fi
 }
@@ -194,6 +195,7 @@ main() {
     log_info "网关服务部署完成！"
     log_info "网关服务地址: http://$(hostname -I | awk '{print $1}'):8000"
     log_info "日志文件: ${DEPLOY_PATH}/logs/"
+    printf "\n"
 }
 
 # 执行主函数

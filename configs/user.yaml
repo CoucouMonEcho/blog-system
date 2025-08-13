@@ -29,6 +29,10 @@ redis:
 grpc:
   port: 9001
 
+registry:
+  endpoints:
+    - "http://127.0.0.1:2379"
+
 log:
   level: debug
   path: logs/user.log

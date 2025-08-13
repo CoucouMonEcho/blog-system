@@ -24,6 +24,8 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: 22
         script: |
+          set -euo pipefail
+          exec 2>&1
           mkdir -p /opt/blog-system
           rm -rf /opt/blog-system/common
           
@@ -44,6 +46,8 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
+          set -euo pipefail
+          exec 2>&1
           cd /opt/blog-system/common
           if [ -f "go.mod" ]; then
             echo "Common module deployed successfully"
@@ -72,6 +76,8 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: 22
         script: |
+          set -euo pipefail
+          exec 2>&1
           mkdir -p /opt/blog-system
           systemctl stop user-service || true
           rm -rf /opt/blog-system/services/user /opt/blog-system/configs/user.yaml
@@ -94,6 +100,8 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         envs: BLOG_PASSWORD
         script: |
+          set -euo pipefail
+          exec 2>&1
           cd /opt/blog-system
           export BLOG_PASSWORD="${{ secrets.BLOG_PASSWORD }}"
           chmod +x deploy/deploy-user-service.sh
@@ -107,6 +115,8 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
+          set -euo pipefail
+          exec 2>&1
           sleep 10
           if systemctl is-active --quiet user-service; then
             echo "User service deployed successfully"
@@ -135,6 +145,8 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: 22
         script: |
+          set -euo pipefail
+          exec 2>&1
           # 检查用户服务是否运行
           if ! systemctl is-active --quiet user-service; then
             echo "User service is not running. Please deploy user service first."
@@ -157,6 +169,8 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: 22
         script: |
+          set -euo pipefail
+          exec 2>&1
           mkdir -p /opt/blog-system
           systemctl stop gateway-service || true
           rm -rf /opt/blog-system/services/gateway /opt/blog-system/configs/gateway.yaml
@@ -179,6 +193,8 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         envs: BLOG_PASSWORD
         script: |
+          set -euo pipefail
+          exec 2>&1
           cd /opt/blog-system
           export BLOG_PASSWORD="${{ secrets.BLOG_PASSWORD }}"
           chmod +x deploy/deploy-gateway-service.sh
@@ -192,6 +208,8 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
+          set -euo pipefail
+          exec 2>&1
           sleep 10
           if systemctl is-active --quiet gateway-service; then
             echo "Gateway service deployed successfully"
