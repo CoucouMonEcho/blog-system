@@ -170,8 +170,30 @@ check_dependencies() {
         exit 1
     fi
     
+    # 优先尝试用户服务 HTTP 健康检查
+    local curl_bin=""
+    if command -v curl >/dev/null 2>&1; then
+        curl_bin=$(command -v curl)
+    else
+        for p in /usr/bin/curl /bin/curl; do
+            [ -x "$p" ] && curl_bin="$p" && break
+        done
+    fi
+    local retries=${CHECK_DEP_RETRIES:-30}
+    local interval=${CHECK_DEP_INTERVAL:-2}
+    local health_url="http://127.0.0.1:8001/health"
+    if [ -n "$curl_bin" ]; then
+        for i in $(seq 1 ${retries}); do
+            if "$curl_bin" -fsS -m 2 "$health_url" 2>/dev/null | grep -q '"status"'; then
+                log_info "用户服务健康检查通过 (${health_url})"
+                break
+            fi
+            sleep ${interval}
+        done
+    fi
+    
     # 检查用户服务端口
-    if ! silent_exec netstat -tlnp | silent_exec grep -q ":8001"; then
+    if ! check_port 8001 "用户服务"; then
         log_error "用户服务端口8001未监听，请检查用户服务"
         exit 1
     fi
