@@ -1,0 +1,20 @@
+app:
+  name: stat-service
+  port: 8004
+
+database:
+  driver: "mysql"
+  host: 172.21.87.206
+  port: 3306
+  user: root
+  password: BLOG_PASSWORD
+  name: blog_system
+
+registry:
+  endpoints:
+    - "http://127.0.0.1:2379"
+
+log:
+  level: info
+  path: logs/stat-service.log
+

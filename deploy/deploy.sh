@@ -7,6 +7,9 @@ set -e
 DEPLOY_PATH="/opt/blog-system"
 SERVICE_NAME="user-service"
 GATEWAY_SERVICE_NAME="gateway-service"
+CONTENT_SERVICE_NAME="content-service"
+COMMENT_SERVICE_NAME="comment-service"
+STAT_SERVICE_NAME="stat-service"
 LOG_PATH="/var/log/blog-system"
 
 # 日志函数
@@ -169,6 +172,18 @@ main() {
     # 检查用户服务端口
     check_port 8001 "用户服务"
     
+    # 部署内容服务
+    deploy_service "${CONTENT_SERVICE_NAME}" "services/content" "content.yaml"
+    check_port 8002 "内容服务"
+
+    # 部署评论服务
+    deploy_service "${COMMENT_SERVICE_NAME}" "services/comment" "comment.yaml"
+    check_port 8003 "评论服务"
+
+    # 部署统计服务
+    deploy_service "${STAT_SERVICE_NAME}" "services/stat" "stat.yaml"
+    check_port 8004 "统计服务"
+
     # 部署网关服务
     deploy_service "gateway-service" "services/gateway" "gateway.yaml"
     

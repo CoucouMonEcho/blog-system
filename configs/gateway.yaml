@@ -13,25 +13,25 @@ routes:
   # 内容服务路由
   content:
     prefix: "/api/content"
-    target: "http://localhost:8002"
+    target: "service://content-service"
     timeout: "30s"
     retries: 3
   # 评论服务路由
   comment:
     prefix: "/api/comment"
-    target: "http://localhost:8003"
+    target: "service://comment-service"
     timeout: "30s"
     retries: 3
   # 统计服务路由
   stat:
     prefix: "/api/stat"
-    target: "http://localhost:8004"
+    target: "service://stat-service"
     timeout: "30s"
     retries: 3
   # 管理服务路由
   admin:
     prefix: "/api/admin"
-    target: "http://localhost:8005"
+    target: "service://admin-service"
     timeout: "30s"
     retries: 3
 

@@ -37,6 +37,9 @@ show_help() {
     echo "服务名:"
     echo "  all            所有服务"
     echo "  user           用户服务"
+    echo "  content        内容服务"
+    echo "  comment        评论服务"
+    echo "  stat           统计服务"
     echo "  gateway        网关服务"
     echo "  common         公共模块"
     echo ""
@@ -56,6 +59,9 @@ list_services() {
     echo ""
     echo "服务状态:"
     systemctl status user-service --no-pager -l | head -5
+    systemctl status content-service --no-pager -l | head -5
+    systemctl status comment-service --no-pager -l | head -5
+    systemctl status stat-service --no-pager -l | head -5
     systemctl status gateway-service --no-pager -l | head -5
 }
 
@@ -67,10 +73,16 @@ show_status() {
         log_info "=== 所有服务状态 ==="
         systemctl status user-service --no-pager -l
         echo ""
+        systemctl status content-service --no-pager -l
+        echo ""
+        systemctl status comment-service --no-pager -l
+        echo ""
+        systemctl status stat-service --no-pager -l
+        echo ""
         systemctl status gateway-service --no-pager -l
         echo ""
         log_info "=== 端口监听状态 ==="
-        netstat -tlnp | grep -E ":(8000|8001)" || echo "未发现相关端口监听"
+        netstat -tlnp | grep -E ":(8000|8001|8002|8003|8004)" || echo "未发现相关端口监听"
     else
         log_info "=== $service 服务状态 ==="
         systemctl status ${service}-service --no-pager -l
@@ -84,6 +96,9 @@ restart_service() {
     if [ "$service" = "all" ]; then
         log_info "重启所有服务..."
         silent_exec systemctl restart user-service
+        silent_exec systemctl restart content-service
+        silent_exec systemctl restart comment-service
+        silent_exec systemctl restart stat-service
         silent_exec systemctl restart gateway-service
         log_info "所有服务重启完成"
     else

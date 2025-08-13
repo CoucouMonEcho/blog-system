@@ -24,9 +24,7 @@ func NewUserRepository(db *orm.DB) *UserRepository {
 
 // Create 创建用户
 func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
-	//TODO 显式指定列，避免 ORM 因零值字段被省略导致生成无列 INSERT
 	res := orm.NewInserter[domain.User](r.db).
-		Columns("Username", "Email", "Password", "Role", "Avatar", "Status", "CreatedAt", "UpdatedAt").
 		Values(user).
 		Exec(ctx)
 	if err := res.Err(); err != nil {
