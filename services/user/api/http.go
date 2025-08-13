@@ -56,11 +56,11 @@ func (s *HTTPServer) registerRoutes() {
 	s.server.Post("/api/login", s.Login)
 
 	// 需要认证的接口
-	s.server.Use(http.MethodGet, "/api/info/*", s.AuthMiddleware())
+	s.server.Use(http.MethodGet, "/api/auth/*", s.AuthMiddleware())
 	{
-		s.server.Get("/api/info/:user_id", s.GetUserInfo)
-		s.server.Post("/api/info", s.UpdateUserInfo)
-		s.server.Post("/api/info/password", s.ChangePassword)
+		s.server.Get("/api/auth/info/:user_id", s.GetUserInfo)
+		s.server.Post("/api/auth/update", s.UpdateUserInfo)
+		s.server.Post("/api/auth/password", s.ChangePassword)
 	}
 }
 
