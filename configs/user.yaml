@@ -4,7 +4,7 @@ app:
 
 database:
   driver: "mysql"
-  host: localhost
+  host: 172.21.87.206
   port: 3306
   user: root
   password: BLOG_PASSWORD
