@@ -66,7 +66,7 @@ func main() {
 	loggerInstance.LogWithContext("user-service", "repository", "INFO", "用户仓储层初始化完成")
 
 	// 初始化应用服务
-	userService := application.NewUserService(userRepo, cache)
+	userService := application.NewUserService(userRepo, cache, loggerInstance)
 	loggerInstance.LogWithContext("user-service", "application", "INFO", "用户应用服务初始化完成")
 
 	// 启动 HTTP 服务

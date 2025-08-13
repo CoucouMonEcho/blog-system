@@ -12,14 +12,15 @@ import (
 	"github.com/CoucouMonEcho/go-framework/web"
 )
 
-// Controller HTTP 服务器
-type Controller struct {
+// HTTPServer HTTP 服务器
+type HTTPServer struct {
 	userService *application.UserAppService
+	logger      logger.Logger
 	server      *web.HTTPServer
 }
 
 // NewHTTPServer 创建 HTTP 服务器
-func NewHTTPServer(userService *application.UserAppService, lgr logger.Logger) *Controller {
+func NewHTTPServer(userService *application.UserAppService, lgr logger.Logger) *HTTPServer {
 	// 统一的请求日志中间件（与 gateway 风格一致）
 	requestLogger := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
@@ -36,34 +37,38 @@ func NewHTTPServer(userService *application.UserAppService, lgr logger.Logger) *
 			requestLogger,
 		),
 	)
-	controller := &Controller{
+	svc := &HTTPServer{
 		userService: userService,
+		logger:      lgr,
 		server:      server,
 	}
-	controller.registerRoutes()
-	return controller
+	svc.registerRoutes()
+	return svc
 }
 
 // registerRoutes 注册路由
-func (c *Controller) registerRoutes() {
+func (s *HTTPServer) registerRoutes() {
 	// 健康检查
-	c.server.Get("/health", c.HealthCheck)
+	s.server.Get("/health", s.HealthCheck)
 
 	// 公开接口
-	c.server.Post("/api/register", c.Register)
-	c.server.Post("/api/login", c.Login)
+	s.server.Post("/api/register", s.Register)
+	s.server.Post("/api/login", s.Login)
 
 	// 需要认证的接口
-	c.server.Use(http.MethodGet, "/user/*", c.AuthMiddleware())
+	s.server.Use(http.MethodGet, "/api/user/*", s.AuthMiddleware())
 	{
-		c.server.Get("/user/info/:user_id", c.GetUserInfo)
-		c.server.Post("/user/info", c.UpdateUserInfo)
-		c.server.Post("/user/password", c.ChangePassword)
+		s.server.Get("/api/user/info/:user_id", s.GetUserInfo)
+		s.server.Get("/api/user/test", func(ctx *web.Context) {
+			s.logger.Info("测试日志")
+		})
+		s.server.Post("/api/user/info", s.UpdateUserInfo)
+		s.server.Post("/api/user/password", s.ChangePassword)
 	}
 }
 
 // HealthCheck 健康检查
-func (c *Controller) HealthCheck(ctx *web.Context) {
+func (s *HTTPServer) HealthCheck(ctx *web.Context) {
 	_ = ctx.RespJSONOK(dto.Success(map[string]any{
 		"status":    "ok",
 		"service":   "user-service",
@@ -72,7 +77,7 @@ func (c *Controller) HealthCheck(ctx *web.Context) {
 }
 
 // Register 用户注册
-func (c *Controller) Register(ctx *web.Context) {
+func (s *HTTPServer) Register(ctx *web.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required,min=3,max=20"`
 		Email    string `json:"email" binding:"required,email"`
@@ -84,7 +89,7 @@ func (c *Controller) Register(ctx *web.Context) {
 		return
 	}
 
-	user, err := c.userService.Register(ctx.Req.Context(), req.Username, req.Email, req.Password)
+	user, err := s.userService.Register(ctx.Req.Context(), req.Username, req.Email, req.Password)
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrUserExists, err.Error()))
 		return
@@ -94,7 +99,7 @@ func (c *Controller) Register(ctx *web.Context) {
 }
 
 // Login 用户登录
-func (c *Controller) Login(ctx *web.Context) {
+func (s *HTTPServer) Login(ctx *web.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
@@ -105,7 +110,7 @@ func (c *Controller) Login(ctx *web.Context) {
 		return
 	}
 
-	user, err := c.userService.Login(ctx.Req.Context(), req.Username, req.Password)
+	user, err := s.userService.Login(ctx.Req.Context(), req.Username, req.Password)
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
 		return
@@ -125,14 +130,14 @@ func (c *Controller) Login(ctx *web.Context) {
 }
 
 // GetUserInfo 获取用户信息
-func (c *Controller) GetUserInfo(ctx *web.Context) {
+func (s *HTTPServer) GetUserInfo(ctx *web.Context) {
 	userID, err := ctx.PathValue("user_id").AsInt64()
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
-	user, err := c.userService.GetUserInfo(ctx.Req.Context(), userID)
+	user, err := s.userService.GetUserInfo(ctx.Req.Context(), userID)
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusNotFound, dto.Error(errcode.ErrUserNotFound, err.Error()))
 		return
@@ -142,7 +147,7 @@ func (c *Controller) GetUserInfo(ctx *web.Context) {
 }
 
 // UpdateUserInfo 更新用户信息
-func (c *Controller) UpdateUserInfo(ctx *web.Context) {
+func (s *HTTPServer) UpdateUserInfo(ctx *web.Context) {
 	userID, err := ctx.PathValue("user_id").AsInt64()
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
@@ -171,7 +176,7 @@ func (c *Controller) UpdateUserInfo(ctx *web.Context) {
 		updates["avatar"] = req.Avatar
 	}
 
-	if err := c.userService.UpdateUserInfo(ctx.Req.Context(), userID, updates); err != nil {
+	if err := s.userService.UpdateUserInfo(ctx.Req.Context(), userID, updates); err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
 	}
@@ -180,7 +185,7 @@ func (c *Controller) UpdateUserInfo(ctx *web.Context) {
 }
 
 // ChangePassword 修改密码
-func (c *Controller) ChangePassword(ctx *web.Context) {
+func (s *HTTPServer) ChangePassword(ctx *web.Context) {
 	userID, err := ctx.PathValue("user_id").AsInt64()
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
@@ -197,7 +202,7 @@ func (c *Controller) ChangePassword(ctx *web.Context) {
 		return
 	}
 
-	if err := c.userService.ChangePassword(ctx.Req.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
+	if err := s.userService.ChangePassword(ctx.Req.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
 		return
 	}
@@ -206,7 +211,7 @@ func (c *Controller) ChangePassword(ctx *web.Context) {
 }
 
 // AuthMiddleware JWT 认证中间件
-func (c *Controller) AuthMiddleware() web.Middleware {
+func (s *HTTPServer) AuthMiddleware() web.Middleware {
 	return func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
 			token := ctx.Req.Header.Get("Authorization")
@@ -237,6 +242,6 @@ func (c *Controller) AuthMiddleware() web.Middleware {
 }
 
 // Run 启动服务器
-func (c *Controller) Run(addr string) error {
-	return c.server.Start(addr)
+func (s *HTTPServer) Run(addr string) error {
+	return s.server.Start(addr)
 }

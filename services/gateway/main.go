@@ -80,7 +80,7 @@ func main() {
 	}
 
 	// 初始化应用服务
-	gatewayService := application.NewGatewayService(routeRepo, serviceDiscovery, rateLimiter, circuitBreaker)
+	gatewayService := application.NewGatewayService(routeRepo, serviceDiscovery, rateLimiter, circuitBreaker, loggerInstance)
 	loggerInstance.LogWithContext("gateway-service", "application", "INFO", "网关应用服务初始化完成")
 
 	// 启动 HTTP 服务
