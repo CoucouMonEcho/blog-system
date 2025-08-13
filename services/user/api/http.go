@@ -20,26 +20,27 @@ type HTTPServer struct {
 }
 
 // NewHTTPServer 创建 HTTP 服务器
-func NewHTTPServer(userService *application.UserAppService, lgr logger.Logger) *HTTPServer {
+func NewHTTPServer(userService *application.UserAppService, logger logger.Logger) *HTTPServer {
 	// 统一的请求日志中间件（与 gateway 风格一致）
 	requestLogger := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
 			start := time.Now()
 			next(ctx)
-			lgr.LogWithContext("user-service", "http", "INFO",
+			logger.LogWithContext("user-service", "http", "INFO",
 				"请求: %s %s %d %s %s",
 				ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
 		}
 	}
 
 	server := web.NewHTTPServer(
+		web.ServerWithLogger(logger.Error),
 		web.ServerWithMiddlewares(
 			requestLogger,
 		),
 	)
 	svc := &HTTPServer{
 		userService: userService,
-		logger:      lgr,
+		logger:      logger,
 		server:      server,
 	}
 	svc.registerRoutes()

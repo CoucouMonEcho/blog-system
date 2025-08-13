@@ -33,6 +33,7 @@ func NewHTTPServer(gatewayService *application.GatewayService, logger logger.Log
 	}.Build()
 
 	server := web.NewHTTPServer(
+		web.ServerWithLogger(logger.Error),
 		web.ServerWithMiddlewares(
 			recoverMiddleware,
 			loggerMiddleware(logger),

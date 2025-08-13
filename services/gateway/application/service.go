@@ -1,6 +1,7 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -109,8 +110,8 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 		Timeout: route.Timeout,
 	}
 
-	// 9. 构建请求
-	proxyReq, err := http.NewRequest(req.Method, targetURL.String()+forwardPath, strings.NewReader(string(req.Body)))
+	// 9. 构建请求（使用字节Reader，避免编码问题）
+	proxyReq, err := http.NewRequestWithContext(ctx, req.Method, targetURL.String()+forwardPath, bytes.NewReader(req.Body))
 	if err != nil {
 		s.logger.LogWithContext("gateway-service", "application", "ERROR", "构建请求失败: url=%s err=%v", targetURL.String()+forwardPath, err)
 		return &domain.ProxyResponse{
@@ -119,11 +120,34 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 		}, err
 	}
 
-	// 10. 复制请求头
+	// 10. 复制端到端请求头，过滤 hop-by-hop 头
+	hopByHop := map[string]struct{}{
+		"Connection":          {},
+		"Proxy-Connection":    {},
+		"Keep-Alive":          {},
+		"Proxy-Authenticate":  {},
+		"Proxy-Authorization": {},
+		"Te":                  {},
+		"Trailer":             {},
+		"Transfer-Encoding":   {},
+		"Upgrade":             {},
+		"Content-Length":      {},
+		"Expect":              {},
+	}
 	for key, values := range req.Headers {
-		for _, value := range values {
-			proxyReq.Header.Add(key, value)
+		ck := http.CanonicalHeaderKey(key)
+		if _, skip := hopByHop[ck]; skip {
+			continue
 		}
+		for _, value := range values {
+			proxyReq.Header.Add(ck, value)
+		}
+	}
+	// 追加 X-Forwarded-For
+	if prior, ok := proxyReq.Header["X-Forwarded-For"]; ok && len(prior) > 0 {
+		proxyReq.Header.Set("X-Forwarded-For", prior[0]+", "+req.Client)
+	} else {
+		proxyReq.Header.Set("X-Forwarded-For", req.Client)
 	}
 
 	// 11. 发送请求
@@ -138,7 +162,7 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 			Body:       []byte("请求目标服务失败"),
 		}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// 12. 读取响应
 	body, err := io.ReadAll(resp.Body)

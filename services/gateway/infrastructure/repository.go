@@ -155,7 +155,17 @@ func (s *ServiceDiscovery) GetServiceHealth(target string) bool {
 		return false
 	}
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Head(resolved)
+	u, err := url.Parse(resolved)
+	if err != nil {
+		return false
+	}
+	// 访问 /health 更准确
+	healthURL := u.ResolveReference(&url.URL{Path: "/health"})
+	req, err := http.NewRequest("GET", healthURL.String(), nil)
+	if err != nil {
+		return false
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return false
 	}
