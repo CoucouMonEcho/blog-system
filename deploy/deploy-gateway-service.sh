@@ -122,13 +122,23 @@ check_port() {
     local port=$1
     local service_name=$2
     
-    # 使用更安静的方式检查端口
-    if silent_exec netstat -tlnp | silent_exec grep -q ":${port}"; then
-        log_info "${service_name} 端口${port}监听正常"
-        return 0
+    # 使用更可靠的方式检查端口（优先 ss）
+    if command -v ss >/dev/null 2>&1; then
+        if ss -ltn 2>/dev/null | grep -q ":${port}\b"; then
+            log_info "${service_name} 端口${port}监听正常"
+            return 0
+        else
+            log_error "${service_name} 端口${port}未监听"
+            return 1
+        fi
     else
-        log_error "${service_name} 端口${port}未监听"
-        return 1
+        if netstat -tlnp 2>/dev/null | grep -q ":${port}\b"; then
+            log_info "${service_name} 端口${port}监听正常"
+            return 0
+        else
+            log_error "${service_name} 端口${port}未监听"
+            return 1
+        fi
     fi
 }
 

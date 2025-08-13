@@ -30,45 +30,45 @@ silent_exec_stdout() {
 
 # 部署用户服务
 deploy_user_service() {
-    log_info "开始部署用户服务..."
-    
-    # 停止现有服务
-    log_info "停止现有服务..."
-    silent_exec systemctl stop ${SERVICE_NAME} || true
-    
-    # 更新配置文件
-    log_info "更新配置文件..."
-    if [ ! -z "$BLOG_PASSWORD" ]; then
-        silent_exec sed -i "s/BLOG_PASSWORD/$BLOG_PASSWORD/g" ${DEPLOY_PATH}/configs/user.yaml
-        log_info "数据库密码已更新"
-    fi
-    
-    # 修复日志路径
-    silent_exec sed -i "s|logs/.*\.log|${DEPLOY_PATH}/logs/${SERVICE_NAME}.log|g" ${DEPLOY_PATH}/configs/user.yaml
-    log_info "日志路径已更新为: ${DEPLOY_PATH}/logs/${SERVICE_NAME}.log"
-    
-    # 构建应用
-    log_info "构建应用..."
-    cd ${DEPLOY_PATH}/services/user
-    
-    export GOOS=linux
-    export GOARCH=amd64
-    export CGO_ENABLED=0
-    
-    # 静默执行go命令
-    silent_exec go mod download
-    silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} .
-    
-    if [ ! -f "${SERVICE_NAME}" ]; then
-        log_error "应用构建失败"
-        exit 1
-    fi
-    log_info "应用构建成功"
-    
-    # 创建systemd服务文件
-    log_info "创建systemd服务文件..."
-    
-    cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
+	log_info "开始部署用户服务..."
+	
+	# 停止现有服务
+	log_info "停止现有服务..."
+	silent_exec systemctl stop ${SERVICE_NAME} || true
+	
+	# 更新配置文件
+	log_info "更新配置文件..."
+	if [ ! -z "$BLOG_PASSWORD" ]; then
+		silent_exec sed -i "s/BLOG_PASSWORD/$BLOG_PASSWORD/g" ${DEPLOY_PATH}/configs/user.yaml
+		log_info "数据库密码已更新"
+	fi
+	
+	# 修复日志路径
+	silent_exec sed -i "s|logs/.*\.log|${DEPLOY_PATH}/logs/${SERVICE_NAME}.log|g" ${DEPLOY_PATH}/configs/user.yaml
+	log_info "日志路径已更新为: ${DEPLOY_PATH}/logs/${SERVICE_NAME}.log"
+	
+	# 构建应用
+	log_info "构建应用..."
+	cd ${DEPLOY_PATH}/services/user
+	
+	export GOOS=linux
+	export GOARCH=amd64
+	export CGO_ENABLED=0
+	
+	# 静默执行go命令
+	silent_exec go mod download
+	silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} .
+	
+	if [ ! -f "${SERVICE_NAME}" ]; then
+		log_error "应用构建失败"
+		exit 1
+	fi
+	log_info "应用构建成功"
+	
+	# 创建systemd服务文件
+	log_info "创建systemd服务文件..."
+	
+	cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
 [Unit]
 Description=Blog System ${SERVICE_NAME}
 After=network.target
@@ -88,92 +88,102 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
 
-    # 设置权限
-    silent_exec chmod +x ${DEPLOY_PATH}/services/user/${SERVICE_NAME}
-    silent_exec chmod 644 /etc/systemd/system/${SERVICE_NAME}.service
-    
-    # 重新加载systemd并启动服务
-    silent_exec systemctl daemon-reload
-    silent_exec systemctl enable ${SERVICE_NAME}
-    silent_exec systemctl start ${SERVICE_NAME}
-    
-    # 等待服务启动
-    sleep 8
-    
-    # 检查服务状态
-    if systemctl is-active --quiet ${SERVICE_NAME}; then
-        log_info "${SERVICE_NAME} 启动成功"
-    else
-        log_error "${SERVICE_NAME} 启动失败"
-        printf "=== 服务状态 ===\n"
-        systemctl status ${SERVICE_NAME} --no-pager -l
-        printf "=== 服务日志 ===\n"
-        journalctl -u ${SERVICE_NAME} --no-pager -l
-        printf "=== 配置文件内容 ===\n"
-        cat ${DEPLOY_PATH}/configs/user.yaml
-        printf "=== 日志文件 ===\n"
-        ls -la ${DEPLOY_PATH}/logs/ || printf "日志目录不存在\n"
-        exit 1
-    fi
+	# 设置权限
+	silent_exec chmod +x ${DEPLOY_PATH}/services/user/${SERVICE_NAME}
+	silent_exec chmod 644 /etc/systemd/system/${SERVICE_NAME}.service
+	
+	# 重新加载systemd并启动服务
+	silent_exec systemctl daemon-reload
+	silent_exec systemctl enable ${SERVICE_NAME}
+	silent_exec systemctl start ${SERVICE_NAME}
+	
+	# 等待服务启动
+	sleep 8
+	
+	# 检查服务状态
+	if systemctl is-active --quiet ${SERVICE_NAME}; then
+		log_info "${SERVICE_NAME} 启动成功"
+	else
+		log_error "${SERVICE_NAME} 启动失败"
+		printf "=== 服务状态 ===\n"
+		systemctl status ${SERVICE_NAME} --no-pager -l
+		printf "=== 服务日志 ===\n"
+		journalctl -u ${SERVICE_NAME} --no-pager -l
+		printf "=== 配置文件内容 ===\n"
+		cat ${DEPLOY_PATH}/configs/user.yaml
+		printf "=== 日志文件 ===\n"
+		ls -la ${DEPLOY_PATH}/logs/ || printf "日志目录不存在\n"
+		exit 1
+	fi
 }
 
 # 检查端口函数
 check_port() {
-    local port=$1
-    local service_name=$2
-    
-    # 使用更安静的方式检查端口
-    if silent_exec netstat -tlnp | silent_exec grep -q ":${port}"; then
-        log_info "${service_name} 端口${port}监听正常"
-        return 0
-    else
-        log_error "${service_name} 端口${port}未监听"
-        return 1
-    fi
+	local port=$1
+	local service_name=$2
+	
+	# 优先使用 ss，其次使用 netstat，避免抑制管道输出
+	if command -v ss >/dev/null 2>&1; then
+		if ss -ltn 2>/dev/null | grep -q ":${port}\b"; then
+			log_info "${service_name} 端口${port}监听正常"
+			return 0
+		else
+			log_error "${service_name} 端口${port}未监听"
+			return 1
+		fi
+	else
+		if netstat -tlnp 2>/dev/null | grep -q ":${port}\b"; then
+			log_info "${service_name} 端口${port}监听正常"
+			return 0
+		else
+			log_error "${service_name} 端口${port}未监听"
+			return 1
+		fi
+	fi
 }
 
 # 主函数
 main() {
-    log_info "开始部署用户服务..."
-    
-    # 检查是否为root用户
-    if [ "$EUID" -ne 0 ]; then
-        log_error "请使用root权限运行此脚本"
-        exit 1
-    fi
-    
-    # 创建目录结构
-    log_info "创建目录结构..."
-    silent_exec mkdir -p ${LOG_PATH}
-    silent_exec mkdir -p ${DEPLOY_PATH}/logs
-    
-    # 检查Redis Cluster配置
-    log_info "检查Redis Cluster配置..."
-    if ! command -v redis-cli &> /dev/null; then
-        log_error "Redis客户端未安装，请先安装Redis"
-        exit 1
-    fi
-    
-    # 检查Redis Cluster节点
-    for port in 7001 7002 7003; do
-        if silent_exec redis-cli -p $port ping; then
-            log_info "Redis Cluster节点 $port 正常"
-        else
-            log_error "Redis Cluster节点 $port 不可用"
-            log_info "请确保Redis Cluster已正确配置并运行在端口 7001, 7002, 7003"
-        fi
-    done
-    
-    # 部署用户服务
-    deploy_user_service
-    
-    # 检查用户服务端口
-    check_port 8001 "用户服务"
-    
-    log_info "用户服务部署完成！"
-    log_info "用户服务地址: http://$(hostname -I | awk '{print $1}'):8001"
-    log_info "日志文件: ${DEPLOY_PATH}/logs/"
-    printf "\n"
+	log_info "开始部署用户服务..."
+	
+	# 检查是否为root用户
+	if [ "$EUID" -ne 0 ]; then
+		log_error "请使用root权限运行此脚本"
+		exit 1
+	fi
+	
+	# 创建目录结构
+	log_info "创建目录结构..."
+	silent_exec mkdir -p ${LOG_PATH}
+	silent_exec mkdir -p ${DEPLOY_PATH}/logs
+	
+	# 检查Redis Cluster配置
+	log_info "检查Redis Cluster配置..."
+	if ! command -v redis-cli &> /dev/null; then
+		log_error "Redis客户端未安装，请先安装Redis"
+		exit 1
+	fi
+	
+	# 检查Redis Cluster节点
+	for port in 7001 7002 7003; do
+		if silent_exec redis-cli -p $port ping; then
+			log_info "Redis Cluster节点 $port 正常"
+		else
+			log_error "Redis Cluster节点 $port 不可用"
+			log_info "请确保Redis Cluster已正确配置并运行在端口 7001, 7002, 7003"
+		fi
+	done
+	
+	# 部署用户服务
+	deploy_user_service
+	
+	# 检查用户服务端口
+	check_port 8001 "用户服务"
+	
+	log_info "用户服务部署完成！"
+	log_info "用户服务地址: http://$(hostname -I | awk '{print $1}'):8001"
+	log_info "日志文件: ${DEPLOY_PATH}/logs/"
+	printf "\n"
 }
 
 # 执行主函数
