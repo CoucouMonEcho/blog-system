@@ -88,8 +88,9 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/user,configs/user.yaml"
+        source: "services/user,configs/user.yaml,deploy/deploy-user-service.sh"
         target: /opt/blog-system
+        overwrite: true
         
     - name: Execute user service deployment
       uses: appleboy/ssh-action@v0.1.5
@@ -181,8 +182,9 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/gateway,configs/gateway.yaml"
+        source: "services/gateway,configs/gateway.yaml,deploy/deploy-gateway-service.sh"
         target: /opt/blog-system
+        overwrite: true
         
     - name: Execute gateway service deployment
       uses: appleboy/ssh-action@v0.1.5
