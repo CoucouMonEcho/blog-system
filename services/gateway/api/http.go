@@ -51,8 +51,8 @@ func NewHTTPServer(gatewayService *application.GatewayService, logger logger.Log
 func (s *HTTPServer) Run(addr string) error {
 	// 注册路由
 	s.server.Get("/health", healthHandler(s.logger))
-	s.server.Post("/api/*", proxyHandler(s.gatewayService, s.logger))
-	s.server.Get("/api/*", proxyHandler(s.gatewayService, s.logger))
+	s.server.Post("/*", proxyHandler(s.gatewayService, s.logger))
+	s.server.Get("/*", proxyHandler(s.gatewayService, s.logger))
 
 	return s.server.Start(addr)
 }

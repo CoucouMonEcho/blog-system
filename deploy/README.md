@@ -235,18 +235,6 @@ curl http://localhost:8000/health
    - 设置告警机制
    - 定期检查性能指标
 
-## 测试部署
-
-### 使用测试脚本
-
-```bash
-# 运行测试部署
-./test-deploy.sh
-
-# 测试特定服务
-./deploy/deploy-user-service.sh
-```
-
 ### 验证步骤
 
 1. **构建测试**
