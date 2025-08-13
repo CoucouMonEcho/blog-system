@@ -121,25 +121,26 @@ EOF
 check_port() {
 	local port=$1
 	local service_name=$2
+	local retries=${CHECK_PORT_RETRIES:-30}
+	local interval=${CHECK_PORT_INTERVAL:-2}
 	
-	# 优先使用 ss，其次使用 netstat，避免抑制管道输出
-	if command -v ss >/dev/null 2>&1; then
-		if ss -ltn 2>/dev/null | grep -q ":${port}\b"; then
-			log_info "${service_name} 端口${port}监听正常"
-			return 0
+	for i in $(seq 1 ${retries}); do
+		# 优先使用 ss，其次使用 netstat，避免抑制管道输出
+		if command -v ss >/dev/null 2>&1; then
+			if ss -ltn 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
+				log_info "${service_name} 端口${port}监听正常"
+				return 0
+			fi
 		else
-			log_error "${service_name} 端口${port}未监听"
-			return 1
+			if netstat -tlnp 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
+				log_info "${service_name} 端口${port}监听正常"
+				return 0
+			fi
 		fi
-	else
-		if netstat -tlnp 2>/dev/null | grep -q ":${port}\b"; then
-			log_info "${service_name} 端口${port}监听正常"
-			return 0
-		else
-			log_error "${service_name} 端口${port}未监听"
-			return 1
-		fi
-	fi
+		sleep ${interval}
+	done
+	log_error "${service_name} 端口${port}未监听"
+	return 1
 }
 
 # 主函数
