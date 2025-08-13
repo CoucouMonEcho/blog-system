@@ -7,10 +7,10 @@ import (
 	"blog-system/common/pkg/util"
 	"blog-system/services/user/application"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/CoucouMonEcho/go-framework/web"
-	"github.com/CoucouMonEcho/go-framework/web/middlewares/recover"
 )
 
 // HTTPServer HTTP 服务器
@@ -22,15 +22,24 @@ type HTTPServer struct {
 
 // NewHTTPServer 创建 HTTP 服务器
 func NewHTTPServer(userService *application.UserAppService, logger logger.Logger) *HTTPServer {
-	// 恢复中间件，避免 panic 导致连接被动关闭（EOF）
-	recoverMiddleware := recover.MiddlewareBuilder{
-		Code: http.StatusInternalServerError,
-		Data: []byte("Internal Server Error"),
-		Log: func(ctx *web.Context) {
-			logger.LogWithContext("user-service", "recover", "ERROR", "服务恢复中间件触发")
-		},
-	}.Build()
-	// 统一的请求日志中间件（与 gateway 风格一致）
+	// 恢复中间件
+	customRecover := func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			defer func() {
+				if r := recover(); r != nil {
+					stack := debug.Stack()
+					logger.LogWithContext(
+						"user-service", "recover", "ERROR",
+						"panic=%v method=%s path=%s remote=%s\nheaders=%v\nstack=%s",
+						r, ctx.Req.Method, ctx.Req.URL.Path, ctx.Req.RemoteAddr, ctx.Req.Header, string(stack),
+					)
+					_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, "内部服务错误"))
+				}
+			}()
+			next(ctx)
+		}
+	}
+	// 日志中间件
 	requestLogger := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
 			start := time.Now()
@@ -44,7 +53,7 @@ func NewHTTPServer(userService *application.UserAppService, logger logger.Logger
 	server := web.NewHTTPServer(
 		web.ServerWithLogger(logger.Error),
 		web.ServerWithMiddlewares(
-			recoverMiddleware,
+			customRecover,
 			requestLogger,
 		),
 	)
@@ -66,7 +75,7 @@ func (s *HTTPServer) registerRoutes() {
 	s.server.Post("/api/register", s.Register)
 	s.server.Post("/api/login", s.Login)
 
-	// 需要认证的接口
+	// 认证接口
 	s.server.Use(http.MethodGet, "/api/auth/*", s.AuthMiddleware())
 	{
 		s.server.Get("/api/auth/info/:user_id", s.GetUserInfo)
@@ -127,7 +136,7 @@ func (s *HTTPServer) Login(ctx *web.Context) {
 	// 生成 JWT 令牌
 	token, err := util.GenerateToken(user.ID, user.Role)
 	if err != nil {
-		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, "生成令牌失败"))
+		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
 	}
 
@@ -205,12 +214,12 @@ func (s *HTTPServer) ChangePassword(ctx *web.Context) {
 		NewPassword string `json:"new_password" binding:"required,min=6"`
 	}
 
-	if err := ctx.BindJSON(&req); err != nil {
+	if err = ctx.BindJSON(&req); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
-	if err := s.userService.ChangePassword(ctx.Req.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
+	if err = s.userService.ChangePassword(ctx.Req.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
 		return
 	}
@@ -235,7 +244,7 @@ func (s *HTTPServer) AuthMiddleware() web.Middleware {
 
 			claims, err := util.ParseToken(token)
 			if err != nil {
-				_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrTokenInvalid, "无效的认证令牌"))
+				_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrTokenInvalid, err.Error()))
 				return
 			}
 

@@ -46,11 +46,10 @@ func main() {
 	// 初始化数据库连接 - 添加错误处理但不退出
 	db, err := infrastructure.InitDB(cfg)
 	if err != nil {
-		loggerInstance.LogWithContext("user-service", "database", "ERROR", "数据库连接失败: %v", err)
-		loggerInstance.LogWithContext("user-service", "database", "WARN", "数据库连接失败，但继续启动服务")
-	} else {
-		loggerInstance.LogWithContext("user-service", "database", "INFO", "数据库连接成功")
+		loggerInstance.LogWithContext("user-service", "database", "FATAL", "数据库连接失败，服务退出: %v", err)
+		return
 	}
+	loggerInstance.LogWithContext("user-service", "database", "INFO", "数据库连接成功")
 
 	// 初始化缓存 - 添加错误处理但不退出
 	cache, err := infrastructure.InitCache(cfg)
