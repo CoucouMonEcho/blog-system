@@ -6,6 +6,7 @@ import (
 
 	"github.com/CoucouMonEcho/go-framework/cache"
 	"github.com/CoucouMonEcho/go-framework/orm"
+	_ "github.com/go-sql-driver/mysql"
 	redis "github.com/redis/go-redis/v9"
 )
 

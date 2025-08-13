@@ -18,8 +18,7 @@ CREATE TABLE IF NOT EXISTS user (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 分类表
-CREATE TABLE IF NOT EXISTS categorie (
+CREATE TABLE IF NOT EXISTS category (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(100) NOT NULL UNIQUE,
@@ -34,8 +33,7 @@ CREATE TABLE IF NOT EXISTS categorie (
     INDEX idx_sort (sort)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 标签表
-CREATE TABLE IF NOT EXISTS tags (
+CREATE TABLE IF NOT EXISTS tag (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
     slug VARCHAR(50) NOT NULL UNIQUE,
@@ -75,8 +73,8 @@ CREATE TABLE IF NOT EXISTS article (
     INDEX idx_published_at (published_at),
     INDEX idx_view_count (view_count),
     INDEX idx_like_count (like_count),
-    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+    FOREIGN KEY (author_id) REFERENCES user(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 文章标签关联表
@@ -88,8 +86,8 @@ CREATE TABLE IF NOT EXISTS article_tags (
     UNIQUE KEY uk_article_tag (article_id, tag_id),
     INDEX idx_article_id (article_id),
     INDEX idx_tag_id (tag_id),
-    FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE,
-    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+    FOREIGN KEY (article_id) REFERENCES article(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tag(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 评论表
@@ -106,8 +104,8 @@ CREATE TABLE IF NOT EXISTS comment (
     INDEX idx_article_id (article_id),
     INDEX idx_parent_id (parent_id),
     INDEX idx_status (status),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
+    FOREIGN KEY (article_id) REFERENCES article(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 统计表
@@ -130,7 +128,7 @@ CREATE TABLE IF NOT EXISTS stat (
 INSERT INTO user (username, email, password, role, status) VALUES
 ('admin', 'admin@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 0);
 
-INSERT INTO categorie (name, slug, description, sort) VALUES
+INSERT INTO category (name, slug, description, sort) VALUES
 ('技术', 'tech', '技术相关文章', 1),
 ('生活', 'life', '生活随笔', 2),
 ('随笔', 'essay', '个人随笔', 3);
