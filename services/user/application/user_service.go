@@ -66,8 +66,15 @@ func (s *UserAppService) Register(ctx context.Context, username, email, password
 		return nil, err
 	}
 
-	s.logger.LogWithContext("user-service", "application", "INFO", "注册成功: id=%d username=%s", user.ID, user.Username)
-	return user, nil
+	//TODO 兼容 ORM 不回填主键或插入异常无错误的情况：插入后回查确保持久化
+	persisted, err := s.userRepo.FindByUsername(ctx, username)
+	if err != nil {
+		s.logger.LogWithContext("user-service", "application", "ERROR", "注册后回查失败，可能未成功持久化: username=%s err=%v", username, err)
+		return nil, errors.New("用户创建后未成功持久化")
+	}
+
+	s.logger.LogWithContext("user-service", "application", "INFO", "注册成功: id=%d username=%s", persisted.ID, persisted.Username)
+	return persisted, nil
 }
 
 // Login 用户登录
