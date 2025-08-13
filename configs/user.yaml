@@ -8,7 +8,7 @@ database:
   port: 3306
   user: root
   password: BLOG_PASSWORD
-  name: blog_user
+  name: blog_system
 
 redis:
   # Redis Cluster配置 - 生产环境使用集群模式
