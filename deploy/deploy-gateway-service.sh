@@ -123,16 +123,33 @@ check_port() {
     local service_name=$2
     local retries=${CHECK_PORT_RETRIES:-30}
     local interval=${CHECK_PORT_INTERVAL:-2}
-    
+
+    # 解析可执行路径，避免 PATH 缺少 /usr/sbin 时找不到 ss/netstat
+    local ss_bin=""
+    if command -v ss >/dev/null 2>&1; then
+        ss_bin=$(command -v ss)
+    else
+        for p in /usr/sbin/ss /usr/bin/ss /sbin/ss; do
+            [ -x "$p" ] && ss_bin="$p" && break
+        done
+    fi
+    local netstat_bin=""
+    if command -v netstat >/dev/null 2>&1; then
+        netstat_bin=$(command -v netstat)
+    else
+        for p in /usr/sbin/netstat /usr/bin/netstat /bin/netstat; do
+            [ -x "$p" ] && netstat_bin="$p" && break
+        done
+    fi
+
     for i in $(seq 1 ${retries}); do
-        # 使用更可靠的方式检查端口（优先 ss）
-        if command -v ss >/dev/null 2>&1; then
-            if ss -ltn 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
+        if [ -n "$ss_bin" ]; then
+            if "$ss_bin" -ltn 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
                 log_info "${service_name} 端口${port}监听正常"
                 return 0
             fi
-        else
-            if netstat -tlnp 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
+        elif [ -n "$netstat_bin" ]; then
+            if "$netstat_bin" -tlnp 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
                 log_info "${service_name} 端口${port}监听正常"
                 return 0
             fi

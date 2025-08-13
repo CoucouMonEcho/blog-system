@@ -119,28 +119,64 @@ EOF
 
 # 检查端口函数
 check_port() {
-	local port=$1
-	local service_name=$2
-	local retries=${CHECK_PORT_RETRIES:-30}
-	local interval=${CHECK_PORT_INTERVAL:-2}
-	
-	for i in $(seq 1 ${retries}); do
-		# 优先使用 ss，其次使用 netstat，避免抑制管道输出
-		if command -v ss >/dev/null 2>&1; then
-			if ss -ltn 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
-				log_info "${service_name} 端口${port}监听正常"
-				return 0
-			fi
-		else
-			if netstat -tlnp 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
-				log_info "${service_name} 端口${port}监听正常"
-				return 0
-			fi
-		fi
-		sleep ${interval}
-	done
-	log_error "${service_name} 端口${port}未监听"
-	return 1
+    local port=$1
+    local service_name=$2
+    local retries=${CHECK_PORT_RETRIES:-30}
+    local interval=${CHECK_PORT_INTERVAL:-2}
+
+    # 解析可执行路径，避免 PATH 缺少 /usr/sbin 时找不到 ss/netstat
+    local ss_bin=""
+    if command -v ss >/dev/null 2>&1; then
+        ss_bin=$(command -v ss)
+    else
+        for p in /usr/sbin/ss /usr/bin/ss /sbin/ss; do
+            [ -x "$p" ] && ss_bin="$p" && break
+        done
+    fi
+    local netstat_bin=""
+    if command -v netstat >/dev/null 2>&1; then
+        netstat_bin=$(command -v netstat)
+    else
+        for p in /usr/sbin/netstat /usr/bin/netstat /bin/netstat; do
+            [ -x "$p" ] && netstat_bin="$p" && break
+        done
+    fi
+
+    # HTTP 健康检查工具
+    local curl_bin=""
+    if command -v curl >/dev/null 2>&1; then
+        curl_bin=$(command -v curl)
+    else
+        for p in /usr/bin/curl /bin/curl; do
+            [ -x "$p" ] && curl_bin="$p" && break
+        done
+    fi
+    local health_url="http://127.0.0.1:${port}/health"
+
+    for i in $(seq 1 ${retries}); do
+        # 1) 如果有 curl，优先做 HTTP 就绪检查
+        if [ -n "$curl_bin" ]; then
+            if "$curl_bin" -fsS -m 2 "$health_url" 2>/dev/null | grep -q '"status"'; then
+                log_info "${service_name} 健康检查通过 (${health_url})"
+                return 0
+            fi
+        fi
+        # 2) 回退端口层面检查
+        if [ -n "$ss_bin" ]; then
+            if "$ss_bin" -ltn 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
+                log_info "${service_name} 端口${port}监听正常"
+                return 0
+            fi
+        elif [ -n "$netstat_bin" ]; then
+            if "$netstat_bin" -tlnp 2>/dev/null | grep -Eq ":${port}([^0-9]|$)"; then
+                log_info "${service_name} 端口${port}监听正常"
+                return 0
+            fi
+        fi
+        sleep ${interval}
+    done
+    log_error "${service_name} 端口${port}未监听"
+    return 1
 }
 
 # 主函数
