@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/CoucouMonEcho/go-framework/web"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/recover"
 )
 
 // HTTPServer HTTP 服务器
@@ -21,6 +22,14 @@ type HTTPServer struct {
 
 // NewHTTPServer 创建 HTTP 服务器
 func NewHTTPServer(userService *application.UserAppService, logger logger.Logger) *HTTPServer {
+	// 恢复中间件，避免 panic 导致连接被动关闭（EOF）
+	recoverMiddleware := recover.MiddlewareBuilder{
+		Code: http.StatusInternalServerError,
+		Data: []byte("Internal Server Error"),
+		Log: func(ctx *web.Context) {
+			logger.LogWithContext("user-service", "recover", "ERROR", "服务恢复中间件触发")
+		},
+	}.Build()
 	// 统一的请求日志中间件（与 gateway 风格一致）
 	requestLogger := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
@@ -35,6 +44,7 @@ func NewHTTPServer(userService *application.UserAppService, logger logger.Logger
 	server := web.NewHTTPServer(
 		web.ServerWithLogger(logger.Error),
 		web.ServerWithMiddlewares(
+			recoverMiddleware,
 			requestLogger,
 		),
 	)

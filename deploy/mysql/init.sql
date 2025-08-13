@@ -3,7 +3,7 @@ CREATE DATABASE IF NOT EXISTS blog_system CHARACTER SET utf8mb4 COLLATE utf8mb4_
 USE blog_system;
 
 -- 用户表
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS user (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 分类表
-CREATE TABLE IF NOT EXISTS categories (
+CREATE TABLE IF NOT EXISTS categorie (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(100) NOT NULL UNIQUE,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS tags (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 文章表
-CREATE TABLE IF NOT EXISTS articles (
+CREATE TABLE IF NOT EXISTS article (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     slug VARCHAR(200) NOT NULL UNIQUE,
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS article_tags (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 评论表
-CREATE TABLE IF NOT EXISTS comments (
+CREATE TABLE IF NOT EXISTS comment (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     content TEXT NOT NULL,
     user_id BIGINT NOT NULL,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS comments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 统计表
-CREATE TABLE IF NOT EXISTS stats (
+CREATE TABLE IF NOT EXISTS stat (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     type VARCHAR(20) NOT NULL COMMENT '统计类型: view, like, favorite',
     target_id BIGINT NOT NULL COMMENT '目标ID',
@@ -127,15 +127,15 @@ CREATE TABLE IF NOT EXISTS stats (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 插入默认数据
-INSERT INTO users (username, email, password, role, status) VALUES 
+INSERT INTO user (username, email, password, role, status) VALUES
 ('admin', 'admin@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 0);
 
-INSERT INTO categories (name, slug, description, sort) VALUES 
+INSERT INTO categorie (name, slug, description, sort) VALUES
 ('技术', 'tech', '技术相关文章', 1),
 ('生活', 'life', '生活随笔', 2),
 ('随笔', 'essay', '个人随笔', 3);
 
-INSERT INTO tags (name, slug, color) VALUES 
+INSERT INTO tag (name, slug, color) VALUES
 ('Go', 'go', '#00ADD8'),
 ('微服务', 'microservice', '#FF6B6B'),
 ('DDD', 'ddd', '#4ECDC4'),
