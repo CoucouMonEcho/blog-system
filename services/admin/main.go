@@ -32,6 +32,8 @@ func main() {
 
 	db, err := infrastructure.InitDB(cfg)
 	if err != nil {
+		// 同时输出到标准错误，便于 systemd 抓取
+		log.Printf("数据库连接失败: %v", err)
 		lgr.LogWithContext("admin-service", "database", "FATAL", "数据库连接失败: %v", err)
 		return
 	}
@@ -49,6 +51,7 @@ func main() {
 	}
 	addr := ":" + strconv.Itoa(cfg.App.Port)
 	if err := http.Run(addr); err != nil {
+		log.Printf("服务启动失败: %v", err)
 		lgr.LogWithContext("admin-service", "main", "FATAL", "服务启动失败: %v", err)
 	}
 }
