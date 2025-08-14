@@ -62,6 +62,8 @@ EOF
     printf "=== 服务状态 ===\n"; systemctl status ${SERVICE_NAME} --no-pager -l; \
     printf "=== 最近日志 ===\n"; journalctl -u ${SERVICE_NAME} -n 200 --no-pager -l || true; \
     printf "=== 配置文件内容 ===\n"; cat ${DEPLOY_PATH}/configs/admin.yaml || true; \
+    printf "=== 应用日志(尾部) ===\n"; tail -n 200 ${DEPLOY_PATH}/logs/${SERVICE_NAME}.log || true; \
+    printf "=== 端口占用检查 ===\n"; (ss -ltnp 2>/dev/null || netstat -tlnp 2>/dev/null) | grep -E ":${PORT:-8003}([^0-9]|$)" || true; \
     printf "=== 日志目录 ===\n"; ls -la ${DEPLOY_PATH}/logs/ || true; \
     exit 1; }
   log_info "${SERVICE_NAME} 启动成功"
