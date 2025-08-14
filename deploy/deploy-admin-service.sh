@@ -22,10 +22,13 @@ deploy_admin_service() {
   # 若端口被占用，强制释放（不关心具体 service 名称）
   ss_bin=$(command -v ss || true)
   netstat_bin=$(command -v netstat || true)
+  lines=""
   if [ -n "$ss_bin" ]; then
-    pids=$("$ss_bin" -ltnp 2>/dev/null | awk "/:${PORT}\\b/ {print \$0}" | sed -nE 's/.*pid=([0-9]+).*/\1/p' | sort -u)
+    lines=$("$ss_bin" -ltnp 2>/dev/null | grep -E ":${PORT}([^0-9]|$)" || true)
+    pids=$(printf "%s\n" "$lines" | sed -nE 's/.*pid=([0-9]+).*/\1/p' | sort -u)
   elif [ -n "$netstat_bin" ]; then
-    pids=$("$netstat_bin" -tlnp 2>/dev/null | awk "/:${PORT}\\b/ {print \$7}" | cut -d'/' -f1 | sort -u)
+    lines=$("$netstat_bin" -tlnp 2>/dev/null | grep -E ":${PORT}([^0-9]|$)" || true)
+    pids=$(printf "%s\n" "$lines" | awk '{print $7}' | cut -d'/' -f1 | sort -u)
   else
     pids=""
   fi
@@ -35,20 +38,24 @@ deploy_admin_service() {
     sleep 2
     for pid in $pids; do kill -KILL "$pid" 2>/dev/null || true; done
     # 同步处理可能的 systemd 守护进程
-    if [ -n "$ss_bin" ]; then
-      progs=$("$ss_bin" -ltnp 2>/dev/null | awk "/:${PORT}\\b/ {print \$0}" | sed -nE 's/.*users:\(\("([^\"]+)".*/\1/p' | sort -u)
-    elif [ -n "$netstat_bin" ]; then
-      progs=$("$netstat_bin" -tlnp 2>/dev/null | awk "/:${PORT}\\b/ {print \$7}" | cut -d'/' -f2 | sort -u)
+    if [ -n "$lines" ]; then
+      progs=$(printf "%s\n" "$lines" | sed -nE 's/.*users:\(\("([^\"]+)".*/\1/p' | sort -u)
+      if [ -z "$progs" ]; then
+        progs=$(printf "%s\n" "$lines" | awk '{print $7}' | cut -d'/' -f2 | sort -u)
+      fi
     else
       progs=""
     fi
     for prog in $progs; do
       [ -z "$prog" ] && continue
-      svc="$prog"; [ -f "/etc/systemd/system/${svc}.service" ] || svc="${prog}.service"
-      systemctl stop "$svc" 2>/dev/null || true
-      systemctl disable "$svc" 2>/dev/null || true
-      systemctl mask "$svc" 2>/dev/null || true
-      if [ -f "/etc/systemd/system/${prog}.service" ]; then rm -f "/etc/systemd/system/${prog}.service"; fi
+      # 停止与该进程名相关的所有 service 单元
+      units=$(systemctl list-units --type=service --all --no-legend --plain 2>/dev/null | awk '{print $1}' | grep -i "$prog" || true)
+      for u in $units; do
+        systemctl stop "$u" 2>/dev/null || true
+        systemctl disable "$u" 2>/dev/null || true
+        systemctl mask "$u" 2>/dev/null || true
+        for d in /etc/systemd/system /usr/lib/systemd/system /lib/systemd/system; do [ -f "$d/$u" ] && rm -f "$d/$u"; done
+      done
     done
     systemctl daemon-reload 2>/dev/null || true
   fi
@@ -60,6 +67,11 @@ deploy_admin_service() {
       break
     fi
   done
+  # 如仍占用，则直接失败，避免错误复叠
+  if (ss -ltnp 2>/dev/null || netstat -tlnp 2>/dev/null) | grep -Eq ":${PORT}([^0-9]|$)"; then
+    log_error "端口 ${PORT} 仍被占用，部署中止"
+    exit 1
+  fi
   # 更新配置文件（密码与日志路径）
   if [ ! -z "${BLOG_PASSWORD:-}" ]; then
     silent_exec sed -i "s/BLOG_PASSWORD/${BLOG_PASSWORD}/g" ${DEPLOY_PATH}/configs/admin.yaml
