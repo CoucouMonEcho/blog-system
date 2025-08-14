@@ -1,6 +1,6 @@
 app:
   name: admin-service
-  port: 8005
+  port: 8003
 
 registry:
   endpoints:

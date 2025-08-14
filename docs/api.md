@@ -1,4 +1,4 @@
-# API 文档（Gateway / User / Content / Comment / Admin / Stat）
+# API 文档（Gateway / User / Content / Admin / Stat）
 
 本文档汇总各服务的 HTTP API，网关通过 `configs/gateway.yaml` 中的前缀进行路由转发（service://）。示例仅展示关键字段，具体响应见通用响应结构。
 
@@ -18,7 +18,6 @@
 
 ## 用户（user，前缀 /api/user）
 - 健康检查: `GET /health`
-- 注册: `POST /api/register` {username,email,password}
 - 登录: `POST /api/login` {username,password}
 - 认证路由前缀: `/api/auth/*`（需 Authorization: Bearer <token>）
   - 获取用户信息: `GET /api/auth/info/:user_id`
@@ -27,19 +26,13 @@
 
 ## 内容（content，前缀 /api/content）
 - 健康检查: `GET /health`
-- 创建文章: `POST /api/article` {title,slug,content,summary?,author_id,category_id,status}
-- 获取文章: `GET /api/article/:id`
-- 更新文章: `POST /api/article/update/:id` {title?,slug?,content?,summary?,category_id?,status?,is_top?,is_recommend?}
-- 删除文章: `POST /api/article/delete/:id`
+- 获取文章: `GET /api/article/:article_id`
+- 文章摘要列表: `GET /api/article/list?page=&page_size=`
+- 关键词搜索: `GET /api/article/search?q=&page=&page_size=`
+- 分类树（三级）: `GET /api/category/tree`
 
-## 评论（comment，前缀 /api/comment）
-- 健康检查: `GET /health`
-- 发表评论: `POST /api/comment` {content,user_id,article_id,parent_id?}
-- 获取评论: `GET /api/comment/:id`
-- 按文章列出评论: `GET /api/comment/article/:article_id?page=1&page_size=10`
-- 审核通过: `POST /api/comment/approve/:id`
-- 审核拒绝: `POST /api/comment/reject/:id`
-- 删除评论: `POST /api/comment/delete/:id`
+## 评论
+已移除
 
 ## 统计（stat，前缀 /api/stat）
 - 健康检查: `GET /health`
@@ -49,18 +42,33 @@
 ## 管理（admin，前缀 /api/admin）
 - 健康检查: `GET /health`
 - 登录（示例）: `POST /api/admin/login` {username,password}
+- 用户管理：
+  - 分页：`GET /api/admin/users?page=&page_size=`
+  - 新增：`POST /api/admin/users` {username,email,password,role,avatar?}
+  - 修改：`POST /api/admin/users/update/:id`
+  - 删除：`POST /api/admin/users/delete/:id`
+- 文章管理：
+  - 分页：`GET /api/admin/articles?page=&page_size=`
+  - 新增：`POST /api/admin/articles` {title,slug,content,summary?,author_id,category_id,status,is_top?,is_recommend?}
+  - 修改：`POST /api/admin/articles/update/:id`
+  - 删除：`POST /api/admin/articles/delete/:id`
+- 分类管理：
+  - 分页：`GET /api/admin/categories?page=&page_size=`
+  - 新增：`POST /api/admin/categories` {name,slug,parent_id?,sort?}
+  - 修改：`POST /api/admin/categories/update/:id`
+  - 删除：`POST /api/admin/categories/delete/:id`
 
 ---
 
 # 十条典型用例
 
-1. 注册用户：POST /api/register -> 返回 user 与 token
-2. 登录：POST /api/login -> 返回 token
-3. 获取用户信息：GET /api/auth/info/1 -> 返回 user
-4. 创建文章：POST /api/article -> 返回 article
-5. 获取文章：GET /api/article/1 -> 返回 article
-6. 更新文章：POST /api/article/update/1 -> 返回 success
-7. 发布评论：POST /api/comment -> 返回 comment
-8. 查看文章评论列表：GET /api/comment/article/1?page=1&page_size=10 -> 返回 list,total
-9. 点赞记录：POST /api/stat/incr?type=like&target_id=1&target_type=article&user_id=2 -> success
-10. 管理端登录：POST /api/admin/login -> 返回 token
+1. 登录：POST /api/login -> 返回 token
+2. 获取用户信息：GET /api/auth/info/1 -> 返回 user
+3. 文章详情：GET /api/article/1 -> 返回 article
+4. 文章摘要列表：GET /api/article/list?page=1&page_size=10 -> 返回 list,total
+5. 关键词搜索：GET /api/article/search?q=go&page=1&page_size=10 -> 返回 list,total
+6. 分类树：GET /api/category/tree -> 返回三级分类树
+7. 管理端新增文章：POST /api/admin/articles -> success
+8. 管理端更新文章：POST /api/admin/articles/update/1 -> success
+9. 管理端删除文章：POST /api/admin/articles/delete/1 -> success
+10. 点赞记录：POST /api/stat/incr?type=like&target_id=1&target_type=article&user_id=2 -> success

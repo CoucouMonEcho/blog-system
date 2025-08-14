@@ -7,36 +7,27 @@
 ```
 blog-system/
 ├── services/           # 微服务模块
-│   ├── user/          # 用户服务 (端口: 8001) ✅
-│   ├── content/       # 内容服务 (端口: 8002) ✅
-│   ├── comment/       # 评论服务 (端口: 8003) ✅
-│   ├── stat/          # 统计服务 (端口: 8004) ✅(基础)
-│   ├── admin/         # 管理服务 (端口: 8005) ✅(健康检查)
-│   └── gateway/       # 网关服务 (端口: 8000) ✅
-├── common/            # 通用库
-│   └── pkg/           # 公共包
-│       ├── logger/    # 结构化日志系统 ✅
-│       ├── dto/       # 数据传输对象
-│       ├── errcode/   # 错误码定义
-│       └── util/      # 工具函数
-├── configs/           # 配置文件
-│   └── user.yaml      # 用户服务配置 ✅
-├── deploy/            # 部署配置
-│   ├── deploy.sh      # 轻量级部署脚本 ✅
-│   └── README.md      # 部署文档 ✅
-├── .github/           # GitHub Actions
-│   └── workflows/     # CI/CD 工作流 ✅
-└── go.work           # Go 工作区配置
+│   ├── user/          # 用户服务 (端口: 8001)
+│   ├── content/       # 内容服务 (端口: 8002)
+│   ├── admin/         # 管理服务 (端口: 8003)
+│   ├── stat/          # 统计服务 (端口: 8004)
+│   └── gateway/       # 网关服务 (端口: 8000)
+├── common/            # 通用库（日志/DTO/错误码/工具）
+├── configs/           # 各服务配置（user/content/stat/admin/gateway）
+├── deploy/            # 部署脚本与文档
+├── docs/              # API 文档
+├── .github/workflows/ # CI/CD 工作流
+└── go.work            # Go 工作区配置
 ```
 
 ## 🛠️ 技术栈
 
 ### 核心框架
-- **[go-framework](https://github.com/CoucouMonEcho/go-framework)**: 自研微服务框架
-  - `web`: HTTP 框架，支持中间件和路由
-  - `orm`: 数据库 ORM，支持 MySQL
-  - `cache`: 缓存框架，支持 Redis
-  - `micro`: 微服务框架（规划中）
+- **[go-framework](https://github.com/CoucouMonEcho/go-framework)**
+  - `web`: HTTP 框架 + recover/otel/prometheus 中间件
+  - `orm`: ORM + otel/prometheus 中间件
+  - `cache`: Redis 封装（Cluster）
+  - `micro/registry`: etcd 服务注册
 
 ### 数据存储
 - **MySQL 8.0**: 主数据库
@@ -68,7 +59,7 @@ git clone <repository-url>
 cd blog-system
 ```
 
-### 3. 本地开发
+### 3. 本地开发（示例）
 
 ```bash
 # 安装依赖
@@ -92,8 +83,8 @@ chmod +x deploy/deploy.sh
 
 ## 📋 服务说明
 
-### ✅ 用户服务 (user) - 已完成
-- **功能**: 用户注册、登录、信息管理
+### ✅ 用户服务 (user)
+- **功能**: 登录、信息查询/更新（注册已迁移至 admin）
 - **端口**: 8001
 - **特性**:
   - JWT 身份验证
@@ -103,24 +94,19 @@ chmod +x deploy/deploy.sh
   - 轻量级部署
 
 ### ✅ 内容服务 (content)
-- **功能**: 文章 CRUD、标签分类
+- **功能**: 文章只读访问（详情、分页摘要列表、关键词搜索）、分类树查询（三级）
 - **端口**: 8002
-- **规划**: 富文本支持、SEO 优化
+ - **说明**: 文章/分类的新增/修改/删除由 admin 负责
 
-### ✅ 评论服务 (comment)
-- **功能**: 评论发布、楼中楼回复
+### ✅ 管理服务 (admin)
+- **功能**: 用户管理（分页/增删改）、文章管理（分页/增删改）、分类管理（分页/增删改）
 - **端口**: 8003
-- **规划**: 评论审核、垃圾评论过滤
+- **说明**: 负责用户注册、内容与分类的后台维护；更新分类后自动清理 `content:category_tree` 缓存
 
 ### ✅ 统计服务 (stat)
 - **功能**: 浏览量、点赞统计
 - **端口**: 8004
 - **规划**: 热榜排行、数据可视化
-
-### ✅ 管理服务 (admin)
-- **功能**: 后台管理、权限控制
-- **端口**: 8005
-- **规划**: 内容审核、用户管理
 
 ### ✅ 网关服务 (gateway)
 - **功能**: 统一入口、路由聚合
@@ -151,7 +137,7 @@ service/
 
 ## 📡 API 文档
 
-完整接口请查看 `docs/api.md`。
+详见 `docs/api.md`（已与当前路由保持一致，去除评论模块、更新 content 与 admin 接口）。
 
 ## 🔧 配置管理
 

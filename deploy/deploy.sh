@@ -175,8 +175,6 @@ main() {
     deploy_service "${CONTENT_SERVICE_NAME}" "services/content" "content.yaml"
     check_port 8002 "内容服务"
 
-    # 评论服务已移除
-
     # 部署统计服务
     deploy_service "${STAT_SERVICE_NAME}" "services/stat" "stat.yaml"
     check_port 8004 "统计服务"

@@ -16,9 +16,13 @@ deploy_admin_service() {
   log_info "开始部署管理服务..."
   silent_exec systemctl stop ${SERVICE_NAME} || true
   cd ${DEPLOY_PATH}/services/admin
+  # 确保远端 Go 环境
+  if [ -f ${DEPLOY_PATH}/deploy/linux/go_env.sh ]; then
+    bash ${DEPLOY_PATH}/deploy/linux/go_env.sh || true
+  fi
   export GOOS=linux GOARCH=amd64 CGO_ENABLED=0
-  silent_exec go mod download
-  silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} .
+  silent_exec go mod download || go mod download
+  silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .
   [ -f "${SERVICE_NAME}" ] || { log_error "构建失败"; exit 1; }
   cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
 [Unit]

@@ -6,37 +6,32 @@
 
 ## 部署架构
 
-### 服务依赖关系
+### 服务依赖关系（概览）
 ```
 Redis Cluster (7001, 7002, 7003)
     ↓
 Common Module
-    ↓
-User Service (8001)
-    ↓
-Gateway Service (8000)
-    ↓
-Admin Service (待开发)
+    ├── User Service (8001)
+    ├── Content Service (8002)
+    └── Admin Service (8003)
+    ├── Stat Service (8004)
+         ↓
+      Gateway Service (8000)
 ```
 
 ### 统一工作流
 
-**deploy.yml** - 统一部署工作流，包含3个job：
+**deploy.yml** - 统一部署工作流（关键 job）：
 
 1. **deploy-common** - 部署公共模块
    - 上传common模块到服务器
    - 验证部署成功
 
-2. **deploy-user-service** - 部署用户服务
-   - 依赖：deploy-common
-   - 部署用户服务到8001端口
-   - 验证服务启动
-
-3. **deploy-gateway-service** - 部署网关服务
-   - 依赖：deploy-user-service
-   - 检查用户服务依赖
-   - 部署网关服务到8000端口
-   - 验证服务启动
+2. **deploy-user-service** - 依赖 `deploy-common`
+3. **deploy-content-service** - 依赖 `deploy-common`（与 user 并行）
+4. **deploy-stat-service** - 依赖 `deploy-common`
+5. **deploy-admin-service** - 依赖 `deploy-common`
+6. **deploy-gateway-service** - 依赖上述四个服务（确保全部部署成功后再发布网关）
 
 ## 部署脚本
 
