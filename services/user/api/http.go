@@ -76,6 +76,7 @@ func (s *HTTPServer) registerRoutes() {
 
 	// 认证接口
 	s.server.Use(http.MethodGet, "/api/auth/*", s.AuthMiddleware())
+	s.server.Use(http.MethodPost, "/api/auth/*", s.AuthMiddleware())
 	{
 		s.server.Get("/api/auth/info/:user_id", s.GetUserInfo)
 		s.server.Post("/api/auth/update", s.UpdateUserInfo)
@@ -204,12 +205,12 @@ func (s *HTTPServer) ChangePassword(ctx *web.Context) {
 		NewPassword string `json:"new_password" binding:"required,min=6"`
 	}
 
-	if err = ctx.BindJSON(&req); err != nil {
+	if err := ctx.BindJSON(&req); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
 
-	if err = s.userService.ChangePassword(ctx.Req.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
+	if err := s.userService.ChangePassword(ctx.Req.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
 		return
 	}
