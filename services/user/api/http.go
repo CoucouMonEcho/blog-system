@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/CoucouMonEcho/go-framework/web"
+	webprom "github.com/CoucouMonEcho/go-framework/web/middlewares/prometheus"
 )
 
 // HTTPServer HTTP 服务器
@@ -55,6 +56,7 @@ func NewHTTPServer(userService *application.UserAppService, logger logger.Logger
 		web.ServerWithMiddlewares(
 			customRecover,
 			requestLogger,
+			webprom.MiddlewareBuilder{Namespace: "blog", Subsystem: "user", Name: "http", Help: "user http latency"}.Build(),
 		),
 	)
 	svc := &HTTPServer{

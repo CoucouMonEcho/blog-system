@@ -61,6 +61,7 @@ type ArticleRepository interface {
 	Update(ctx context.Context, a *Article) error
 	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, page, pageSize int) ([]*Article, int64, error)
+	Count(ctx context.Context) (int64, error)
 }
 
 type CategoryRepository interface {
@@ -68,4 +69,5 @@ type CategoryRepository interface {
 	Update(ctx context.Context, c *Category) error
 	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, page, pageSize int) ([]*Category, int64, error)
+	Count(ctx context.Context) (int64, error)
 }

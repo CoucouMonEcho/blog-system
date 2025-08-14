@@ -36,10 +36,18 @@ func main() {
 		lgr.LogWithContext("admin-service", "database", "FATAL", "数据库连接失败: %v", err)
 		return
 	}
+	// 初始化缓存（可选失败）
+	cache, cerr := infrastructure.InitCache(cfg)
+	if cerr != nil {
+		lgr.LogWithContext("admin-service", "cache", "ERROR", "缓存连接失败: %v", cerr)
+	}
 	userRepo := infrastructure.NewUserRepository(db)
 	artRepo := infrastructure.NewArticleRepository(db)
 	catRepo := infrastructure.NewCategoryRepository(db)
-	app := application.NewAdminService(userRepo, artRepo, catRepo, lgr, nil)
+	userCli := infrastructure.NewUserServiceClient(cfg)
+	statCli := infrastructure.NewStatServiceClient(cfg)
+	promCli := infrastructure.NewPrometheusClient("", 0)
+	app := application.NewAdminService(userRepo, artRepo, catRepo, lgr, cache, userCli, statCli, promCli)
 
 	http := api.NewHTTPServer(lgr)
 	http.SetApp(app)

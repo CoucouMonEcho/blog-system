@@ -39,6 +39,16 @@ jobs:
           source: "common"
           target: /opt/blog-system
 
+      - name: Upload deploy files
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deploy/linux/*"
+          target: /opt/blog-system
+          overwrite: true
+
       - name: Verify common module
         uses: appleboy/ssh-action@v0.1.5
         id: deploy-common

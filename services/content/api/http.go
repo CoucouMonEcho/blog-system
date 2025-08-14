@@ -94,18 +94,7 @@ func (s *HTTPServer) GetArticle(ctx *web.Context) {
 
 // ListArticleSummaries 文章列表（ID+Title）
 func (s *HTTPServer) ListArticleSummaries(ctx *web.Context) {
-	page := 1
-	pageSize := 10
-	if v := ctx.Req.URL.Query().Get("page"); v != "" {
-		if p, err := strconv.Atoi(v); err == nil && p > 0 {
-			page = p
-		}
-	}
-	if v := ctx.Req.URL.Query().Get("page_size"); v != "" {
-		if ps, err := strconv.Atoi(v); err == nil && ps > 0 {
-			pageSize = ps
-		}
-	}
+	page, pageSize := parsePagination(ctx)
 	list, total, err := s.contentService.ListSummaries(ctx.Req.Context(), page, pageSize)
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
@@ -123,18 +112,7 @@ func (s *HTTPServer) SearchArticles(ctx *web.Context) {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, "缺少查询关键词 q"))
 		return
 	}
-	page := 1
-	pageSize := 10
-	if v := ctx.Req.URL.Query().Get("page"); v != "" {
-		if p, err := strconv.Atoi(v); err == nil && p > 0 {
-			page = p
-		}
-	}
-	if v := ctx.Req.URL.Query().Get("page_size"); v != "" {
-		if ps, err := strconv.Atoi(v); err == nil && ps > 0 {
-			pageSize = ps
-		}
-	}
+	page, pageSize := parsePagination(ctx)
 	list, total, err := s.contentService.SearchSummaries(ctx.Req.Context(), q, page, pageSize)
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
@@ -151,6 +129,23 @@ func (s *HTTPServer) ListCategoryTree(ctx *web.Context) {
 		return
 	}
 	_ = ctx.RespJSONOK(dto.Success(tree))
+}
+
+// parsePagination 统一分页解析
+func parsePagination(ctx *web.Context) (int, int) {
+	page := 1
+	pageSize := 10
+	if v := ctx.Req.URL.Query().Get("page"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if v := ctx.Req.URL.Query().Get("page_size"); v != "" {
+		if ps, err := strconv.Atoi(v); err == nil && ps > 0 {
+			pageSize = ps
+		}
+	}
+	return page, pageSize
 }
 
 func (s *HTTPServer) Run(addr string) error { return s.server.Start(addr) }

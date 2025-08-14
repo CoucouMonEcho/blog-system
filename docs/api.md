@@ -16,6 +16,20 @@
 - 健康检查: `GET /health`
 - 代理入口: `GET|POST /api/*`
 
+### 路由前缀与后端服务映射
+网关会将带有服务前缀的路径转发到对应服务，并在转发时去掉前缀，仅保留 `/api/...` 的尾部路径：
+
+- 内容服务：`/api/content/**` → content-service 接口 `/api/**`
+  - 例：`GET /api/content/article/list` → content-service `GET /api/article/list`
+- 管理服务：`/api/admin/**` → admin-service 接口 `/api/**`
+  - 例：`POST /api/admin/users` → admin-service `POST /api/users`
+- 用户服务：`/api/user/**` → user-service 接口 `/api/**`
+  - 例：`POST /api/user/login` → user-service `POST /api/login`
+- 统计服务：`/api/stat/**` → stat-service 接口 `/api/**`
+  - 例：`GET /api/stat/get` → stat-service `GET /api/get`
+
+因此，文档中各具体服务小节列出的路径，均为网关入口路径；落地到后端时会自动按上述规则去前缀。
+
 通用请求头（代理透传）：
 ```
 Authorization: Bearer <token>   # 可选，透传到后端
@@ -81,22 +95,22 @@ Content-Type: application/json    # 对于 POST
 Content-Type: application/json   # 仅对 POST 场景，一般 GET 无需
 ```
 
-- 获取文章：`GET /api/article/:article_id`
+- 获取文章：`GET /api/content/article/:article_id`
   - 响应体：
   ```json
   { "code": 0, "message": "success", "data": { "id": 1, "title": "T", "content": "..." } }
   ```
 
-- 文章摘要列表：`GET /api/article/list?page=&page_size=`
+- 文章摘要列表：`GET /api/content/article/list?page=&page_size=`
   - 响应体：
   ```json
   { "code": 0, "message": "success", "data": { "list": [{"id":1,"title":"T"}], "total": 100, "page": 1, "page_size": 10 } }
   ```
 
-- 关键词搜索：`GET /api/article/search?q=&page=&page_size=`
+- 关键词搜索：`GET /api/content/article/search?q=&page=&page_size=`
   - 响应体：同上，`list` 为匹配到的摘要列表
 
-- 分类树（三级）：`GET /api/category/tree`
+- 分类树（三级）：`GET /api/content/category/tree`
   - 响应体：
   ```json
   { "code": 0, "message": "success", "data": [{"id":1,"name":"A","children":[{"id":2,"name":"B","children":[]}]}] }
@@ -112,7 +126,7 @@ Content-Type: application/json   # 仅对 POST 场景，一般 GET 无需
   ```
   - 响应体：
   ```json
-  { "code": 0, "message": "success", "data": { "token": "mock-admin-token" } }
+  { "code": 0, "message": "success", "data": { "token": "<jwt>" } }
   ```
 
 - 用户管理：
@@ -152,6 +166,25 @@ Content-Type: application/json   # 仅对 POST 场景，一般 GET 无需
   - 删除：`POST /api/admin/categories/delete/:id`
     - 请求体：空
 
+### 仪表盘（admin）
+- 概览：`GET /api/admin/stat/overview`
+  - 响应体：
+  ```json
+  { "code":0, "message":"success", "data": {"pv_today":123, "uv_today":45, "online_users":12, "article_total": 200, "category_total": 20, "error_5xx_last_1h": 0} }
+  ```
+- PV 时间序列：`GET /api/admin/stat/pv_timeseries?from=2025-08-01T00:00:00Z&to=2025-08-01T12:00:00Z&interval=1h`
+  - 响应体：
+  ```json
+  { "code":0, "message":"success", "data": [{"ts":1722470400, "value": 100}]} 
+  ```
+- 错误率：`GET /api/admin/stat/error_rate?from=...&to=...&service=admin`
+  - 响应体：`{ code:0, data: { "error_rate": 0.01 } }`
+- 延迟分位：`GET /api/admin/stat/latency_percentile?from=...&to=...&service=user`
+  - 响应体：`{ code:0, data: { "p50":10, "p90":30, "p95":60, "p99":120 } }`（单位：毫秒，示例）
+- Top 接口：`GET /api/admin/stat/top_endpoints?from=...&to=...&service=content[&top=10]`
+  - 响应体：`{ code:0, data: [{"path":"/api/article/list","qps": 12.3}] }`
+- 活跃用户：`GET /api/admin/stat/active_users?from=...&to=...`
+  - 响应体：`{ code:0, data: { "active_users": 1234 } }`
 ## 统计（stat）
 - 健康检查: `GET /health`
 
