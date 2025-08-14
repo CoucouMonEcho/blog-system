@@ -18,6 +18,10 @@ deploy_stat_service() {
   silent_exec sed -i "s|logs/.*\\.log|${DEPLOY_PATH}/logs/${SERVICE_NAME}.log|g" ${DEPLOY_PATH}/configs/stat.yaml
   cd ${DEPLOY_PATH}/services/stat
   export GOOS=linux GOARCH=amd64 CGO_ENABLED=0
+  # 统一模块与编译缓存目录
+  export GOMODCACHE=${GOMODCACHE:-/opt/blog-system/gomodcache}
+  export GOCACHE=${GOCACHE:-/opt/blog-system/gocache}
+  mkdir -p "$GOMODCACHE" "$GOCACHE"
   # 不 tidy；仅下载依赖并构建
   silent_exec go mod download
   silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .

@@ -28,6 +28,10 @@ deploy_content_service() {
   log_info "构建应用..."
   cd ${DEPLOY_PATH}/services/content
   export GOOS=linux GOARCH=amd64 CGO_ENABLED=0
+  # 统一模块与编译缓存目录
+  export GOMODCACHE=${GOMODCACHE:-/opt/blog-system/gomodcache}
+  export GOCACHE=${GOCACHE:-/opt/blog-system/gocache}
+  mkdir -p "$GOMODCACHE" "$GOCACHE"
   # 仅下载依赖并构建（不执行 tidy）
   silent_exec go mod download
   silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .
