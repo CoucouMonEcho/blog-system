@@ -6,6 +6,7 @@ import (
 	"github.com/CoucouMonEcho/go-framework/orm"
 	ormotel "github.com/CoucouMonEcho/go-framework/orm/middlewares/opentelemetry"
 	ormprom "github.com/CoucouMonEcho/go-framework/orm/middlewares/prometheus"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 func InitDB(cfg *AppConfig) (*orm.DB, error) {
