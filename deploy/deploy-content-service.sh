@@ -28,8 +28,9 @@ deploy_content_service() {
   log_info "构建应用..."
   cd ${DEPLOY_PATH}/services/content
   export GOOS=linux GOARCH=amd64 CGO_ENABLED=0
+  # 仅下载依赖并构建（不执行 tidy）
   silent_exec go mod download
-  silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} .
+  silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .
   if [ ! -f "${SERVICE_NAME}" ]; then log_error "应用构建失败"; exit 1; fi
   log_info "应用构建成功"
 

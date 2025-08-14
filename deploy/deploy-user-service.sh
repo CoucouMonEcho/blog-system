@@ -47,22 +47,15 @@ deploy_user_service() {
 	silent_exec sed -i "s|logs/.*\.log|${DEPLOY_PATH}/logs/${SERVICE_NAME}.log|g" ${DEPLOY_PATH}/configs/user.yaml
 	log_info "日志路径已更新为: ${DEPLOY_PATH}/logs/${SERVICE_NAME}.log"
 	
-    # 构建应用
+	# 构建应用
 	log_info "构建应用..."
-    cd ${DEPLOY_PATH}/services/user
-    # 确保远端 Go 环境
-    if [ -f ${DEPLOY_PATH}/deploy/linux/go_env.sh ]; then
-        bash ${DEPLOY_PATH}/deploy/linux/go_env.sh || true
-    fi
-	
+	cd ${DEPLOY_PATH}/services/user
 	export GOOS=linux
 	export GOARCH=amd64
 	export CGO_ENABLED=0
-	
-	# 静默执行go命令
-    silent_exec go mod download || go mod download
+    # 不在部署脚本执行 go mod tidy；仅下载依赖并构建
+    silent_exec go mod download
     silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .
-	
 	if [ ! -f "${SERVICE_NAME}" ]; then
 		log_error "应用构建失败"
 		exit 1

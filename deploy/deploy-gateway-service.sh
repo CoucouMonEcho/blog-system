@@ -55,9 +55,9 @@ deploy_gateway_service() {
     export GOARCH=amd64
     export CGO_ENABLED=0
     
-    # 静默执行go命令
+    # 仅下载依赖并构建（不执行 tidy）
     silent_exec go mod download
-    silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} .
+    silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .
     
     if [ ! -f "${SERVICE_NAME}" ]; then
         log_error "应用构建失败"

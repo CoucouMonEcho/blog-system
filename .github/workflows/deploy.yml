@@ -67,6 +67,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    # 由远端服务器本地构建，CI 不做交叉编译
       
     - name: Deploy user service
       uses: appleboy/ssh-action@v0.1.5
@@ -88,7 +89,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/user,configs/user.yaml,deploy/deploy-user-service.sh,deploy/linux/go_env.sh"
+        source: "services/user,configs/user.yaml,deploy/deploy-user-service.sh"
         target: /opt/blog-system
         overwrite: true
         
@@ -182,7 +183,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/gateway,configs/gateway.yaml,deploy/deploy-gateway-service.sh,deploy/linux/go_env.sh"
+        source: "services/gateway,configs/gateway.yaml,deploy/deploy-gateway-service.sh"
         target: /opt/blog-system
         overwrite: true
         
@@ -228,6 +229,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    # 由远端服务器本地构建，CI 不做交叉编译
     - name: Prepare remote
       uses: appleboy/ssh-action@v0.1.5
       with:
@@ -246,7 +248,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/stat,configs/stat.yaml,deploy/deploy-stat-service.sh,deploy/linux/go_env.sh"
+        source: "services/stat,configs/stat.yaml,deploy/deploy-stat-service.sh"
         target: /opt/blog-system
         overwrite: true
     - name: Execute stat service deployment
@@ -287,7 +289,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/content,configs/content.yaml,deploy/deploy-content-service.sh,deploy/linux/go_env.sh"
+        source: "services/content,configs/content.yaml,deploy/deploy-content-service.sh"
         target: /opt/blog-system
         overwrite: true
     - name: Execute content service deployment
@@ -314,6 +316,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    # 由远端服务器本地构建，CI 不做交叉编译
     - name: Prepare remote
       uses: appleboy/ssh-action@v0.1.5
       with:
@@ -332,7 +335,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/admin,deploy/deploy-admin-service.sh,deploy/linux/go_env.sh"
+        source: "services/admin,deploy/deploy-admin-service.sh"
         target: /opt/blog-system
         overwrite: true
     - name: Execute admin service deployment

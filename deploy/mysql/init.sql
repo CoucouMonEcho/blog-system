@@ -90,24 +90,6 @@ CREATE TABLE IF NOT EXISTS blog_article_tags (
     FOREIGN KEY (tag_id) REFERENCES blog_tag(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 评论表
-CREATE TABLE IF NOT EXISTS blog_comment (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    content TEXT NOT NULL,
-    user_id BIGINT NOT NULL,
-    article_id BIGINT NOT NULL,
-    parent_id BIGINT DEFAULT 0 COMMENT '父评论ID，用于楼中楼',
-    status TINYINT NOT NULL DEFAULT 0 COMMENT '0: 待审核, 1: 已通过, 2: 已拒绝',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_user_id (user_id),
-    INDEX idx_article_id (article_id),
-    INDEX idx_parent_id (parent_id),
-    INDEX idx_status (status),
-    FOREIGN KEY (user_id) REFERENCES blog_user(id) ON DELETE CASCADE,
-    FOREIGN KEY (article_id) REFERENCES blog_article(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- 统计表
 CREATE TABLE IF NOT EXISTS blog_stat (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
