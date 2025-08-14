@@ -15,6 +15,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.2'
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+      - name: Go Work Init/Sync (monorepo)
+        run: |
+          if [ -f go.work ]; then
+            go work sync
+          else
+            go work init ./common ./services/admin ./services/content ./services/gateway ./services/stat ./services/user
+            go work sync
+          fi
       # common 模块无需构建二进制
 
       - name: Deploy common module
@@ -82,6 +97,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24.2'
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+      - name: Go Work Init/Sync (monorepo)
+        run: |
+          if [ -f go.work ]; then
+            go work sync
+          else
+            go work init ./common ./services/admin ./services/content ./services/gateway ./services/stat ./services/user
+            go work sync
+          fi
       - name: Build user service binary (linux/amd64)
         run: |
           set -euo pipefail
@@ -159,6 +185,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24.2'
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+      - name: Go Work Init/Sync (monorepo)
+        run: |
+          if [ -f go.work ]; then
+            go work sync
+          else
+            go work init ./common ./services/admin ./services/content ./services/gateway ./services/stat ./services/user
+            go work sync
+          fi
       - name: Build content service binary (linux/amd64)
         run: |
           set -euo pipefail
@@ -211,6 +248,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24.2'
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+      - name: Go Work Init/Sync (monorepo)
+        run: |
+          if [ -f go.work ]; then
+            go work sync
+          else
+            go work init ./common ./services/admin ./services/content ./services/gateway ./services/stat ./services/user
+            go work sync
+          fi
       - name: Build admin service binary (linux/amd64)
         run: |
           set -euo pipefail
@@ -263,6 +311,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24.2'
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+      - name: Go Work Init/Sync (monorepo)
+        run: |
+          if [ -f go.work ]; then
+            go work sync
+          else
+            go work init ./common ./services/admin ./services/content ./services/gateway ./services/stat ./services/user
+            go work sync
+          fi
       - name: Build stat service binary (linux/amd64)
         run: |
           set -euo pipefail
@@ -317,6 +376,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24.2'
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
       - name: Build gateway service binary (linux/amd64)
         run: |
           set -euo pipefail

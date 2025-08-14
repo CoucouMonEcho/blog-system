@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	"blog-system/common/pkg/logger"
@@ -79,9 +81,13 @@ func (s *UserAppService) Register(ctx context.Context, username, email, password
 
 // Login 用户登录
 func (s *UserAppService) Login(ctx context.Context, username, password string) (*domain.User, error) {
-	user, err := s.userRepo.FindByUsername(ctx, username)
+	uname := strings.TrimSpace(username)
+	if uname == "" {
+		return nil, errors.New("用户名不能为空")
+	}
+	user, err := s.userRepo.FindByUsername(ctx, uname)
 	if err != nil {
-		s.logger.LogWithContext("user-service", "application", "WARN", "登录失败: 用户不存在, username=%s", username)
+		s.logger.LogWithContext("user-service", "application", "WARN", "登录失败: 用户不存在, username=%s", uname)
 		return nil, errors.New("用户不存在")
 	}
 
@@ -104,7 +110,7 @@ func (s *UserAppService) Login(ctx context.Context, username, password string) (
 // GetUserInfo 获取用户信息
 func (s *UserAppService) GetUserInfo(ctx context.Context, id int64) (*domain.User, error) {
 	// 先从缓存获取
-	cacheKey := "user:" + string(rune(id))
+	cacheKey := "user:" + strconv.FormatInt(id, 10)
 	if cached, err := s.cache.Get(ctx, cacheKey); err == nil {
 		// JSON反序列化缓存数据
 		var user domain.User
@@ -160,7 +166,7 @@ func (s *UserAppService) UpdateUserInfo(ctx context.Context, id int64, updates m
 	}
 
 	// 清除缓存
-	cacheKey := "user:" + string(rune(id))
+	cacheKey := "user:" + strconv.FormatInt(id, 10)
 	_ = s.cache.Del(ctx, cacheKey)
 
 	s.logger.LogWithContext("user-service", "application", "INFO", "更新成功: id=%d", id)

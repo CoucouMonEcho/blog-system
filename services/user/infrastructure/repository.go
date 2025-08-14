@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"blog-system/services/user/domain"
 
@@ -47,7 +48,9 @@ func (r *UserRepository) FindByID(ctx context.Context, id int64) (*domain.User, 
 
 // FindByUsername 根据用户名查找用户
 func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
-	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(username)).Get(ctx)
+	//TODO 规范化：去除前后空格，并按 MySQL collation 进行精确匹配
+	uname := strings.TrimSpace(username)
+	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(uname)).Get(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("用户不存在")
