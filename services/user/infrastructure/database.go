@@ -6,6 +6,8 @@ import (
 
 	"github.com/CoucouMonEcho/go-framework/cache"
 	"github.com/CoucouMonEcho/go-framework/orm"
+	ormotel "github.com/CoucouMonEcho/go-framework/orm/middlewares/opentelemetry"
+	ormprom "github.com/CoucouMonEcho/go-framework/orm/middlewares/prometheus"
 	_ "github.com/go-sql-driver/mysql"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -19,7 +21,10 @@ func InitDB(cfg *AppConfig) (*orm.DB, error) {
 		cfg.Database.Port,
 		cfg.Database.Name,
 	)
-	db, err := orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares())
+	db, err := orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(
+		ormotel.NewMiddlewareBuilder(nil).Build(),
+		ormprom.NewMiddlewareBuilder("blog", "user", "orm", "user orm latency").Build(),
+	))
 	if err != nil {
 		return nil, err
 	}

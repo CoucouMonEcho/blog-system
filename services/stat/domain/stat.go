@@ -13,6 +13,8 @@ type Metric struct {
 	Count      int64  `json:"count"`
 }
 
+func (Metric) TableName() string { return "blog_stat" }
+
 type StatRepository interface {
 	Incr(ctx context.Context, typ string, targetID int64, targetType string, userID *int64) error
 	Get(ctx context.Context, typ string, targetID int64, targetType string, userID *int64) (int64, error)

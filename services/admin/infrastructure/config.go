@@ -35,10 +35,5 @@ func LoadConfig(path string) (*AppConfig, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
-	if cfg.Database.Password != "" {
-		if envVal := os.Getenv(cfg.Database.Password); envVal != "" {
-			cfg.Database.Password = envVal
-		}
-	}
 	return &cfg, nil
 }

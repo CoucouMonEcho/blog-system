@@ -37,10 +37,9 @@ func main() {
 		return
 	}
 	cache, _ := infrastructure.InitCache(cfg)
-	_ = cache
 
 	repo := infrastructure.NewContentRepository(db)
-	app := application.NewContentService(repo, lgr)
+	app := application.NewContentService(repo, lgr, cache)
 
 	http := api.NewHTTPServer(app, lgr)
 	// 注册到注册中心

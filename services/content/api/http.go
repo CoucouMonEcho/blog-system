@@ -8,9 +8,12 @@ import (
 	"blog-system/services/content/domain"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/CoucouMonEcho/go-framework/web"
+	webotel "github.com/CoucouMonEcho/go-framework/web/middlewares/opentelemetry"
+	webprom "github.com/CoucouMonEcho/go-framework/web/middlewares/prometheus"
 )
 
 type HTTPServer struct {
@@ -42,7 +45,12 @@ func NewHTTPServer(contentService *application.ContentAppService, logger logger.
 
 	server := web.NewHTTPServer(
 		web.ServerWithLogger(logger.Error),
-		web.ServerWithMiddlewares(customRecover, requestLogger),
+		web.ServerWithMiddlewares(
+			customRecover,
+			requestLogger,
+			webotel.MiddlewareBuilder{}.Build(),
+			webprom.MiddlewareBuilder{Namespace: "blog", Subsystem: "content", Name: "http", Help: "content http latency"}.Build(),
+		),
 	)
 
 	s := &HTTPServer{contentService: contentService, logger: logger, server: server}
@@ -55,39 +63,17 @@ func (s *HTTPServer) registerRoutes() {
 		_ = ctx.RespJSONOK(dto.Success(map[string]any{"status": "ok", "service": "content"}))
 	})
 
-	// 基础 API
-	s.server.Post("/api/article", s.CreateArticle)
-	s.server.Get("/api/article/:id", s.GetArticle)
+	// 只保留只读接口：列表与详情
+	s.server.Get("/api/article/:article_id", s.GetArticle)
+	s.server.Get("/api/article/list", s.ListArticleSummaries)
+	s.server.Get("/api/article/search", s.SearchArticles)
+	s.server.Get("/api/category/tree", s.ListCategoryTree)
 }
 
-func (s *HTTPServer) CreateArticle(ctx *web.Context) {
-	var req struct {
-		Title      string `json:"title" binding:"required"`
-		Slug       string `json:"slug" binding:"required"`
-		Content    string `json:"content" binding:"required"`
-		Summary    string `json:"summary"`
-		AuthorID   int64  `json:"author_id" binding:"required"`
-		CategoryID int64  `json:"category_id" binding:"required"`
-		Status     int    `json:"status"`
-	}
-	if err := ctx.BindJSON(&req); err != nil {
-		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
-		return
-	}
-	art := &domain.Article{
-		Title: req.Title, Slug: req.Slug, Content: req.Content, Summary: req.Summary,
-		AuthorID: req.AuthorID, CategoryID: req.CategoryID, Status: req.Status,
-	}
-	res, err := s.contentService.Create(ctx.Req.Context(), art)
-	if err != nil {
-		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
-		return
-	}
-	_ = ctx.RespJSONOK(dto.Success(res))
-}
+// Create/Update/Delete 移至 admin 模块
 
 func (s *HTTPServer) GetArticle(ctx *web.Context) {
-	id, err := ctx.PathValue("id").AsInt64()
+	id, err := ctx.PathValue("article_id").AsInt64()
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
@@ -98,6 +84,73 @@ func (s *HTTPServer) GetArticle(ctx *web.Context) {
 		return
 	}
 	_ = ctx.RespJSONOK(dto.Success(art))
+}
+
+// UpdateArticle 更新文章
+// UpdateArticle 移至 admin 模块
+
+// DeleteArticle 删除文章
+// DeleteArticle 移至 admin 模块
+
+// ListArticleSummaries 文章列表（ID+Title）
+func (s *HTTPServer) ListArticleSummaries(ctx *web.Context) {
+	page := 1
+	pageSize := 10
+	if v := ctx.Req.URL.Query().Get("page"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if v := ctx.Req.URL.Query().Get("page_size"); v != "" {
+		if ps, err := strconv.Atoi(v); err == nil && ps > 0 {
+			pageSize = ps
+		}
+	}
+	list, total, err := s.contentService.ListSummaries(ctx.Req.Context(), page, pageSize)
+	if err != nil {
+		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
+		return
+	}
+	_ = ctx.RespJSONOK(dto.Success(dto.PageResponse[*domain.ArticleSummary]{
+		List: list, Total: total, Page: page, PageSize: pageSize,
+	}))
+}
+
+// SearchArticles 根据内容全文搜索文章（返回摘要列表）
+func (s *HTTPServer) SearchArticles(ctx *web.Context) {
+	q := ctx.Req.URL.Query().Get("q")
+	if q == "" {
+		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, "缺少查询关键词 q"))
+		return
+	}
+	page := 1
+	pageSize := 10
+	if v := ctx.Req.URL.Query().Get("page"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if v := ctx.Req.URL.Query().Get("page_size"); v != "" {
+		if ps, err := strconv.Atoi(v); err == nil && ps > 0 {
+			pageSize = ps
+		}
+	}
+	list, total, err := s.contentService.SearchSummaries(ctx.Req.Context(), q, page, pageSize)
+	if err != nil {
+		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
+		return
+	}
+	_ = ctx.RespJSONOK(dto.Success(dto.PageResponse[*domain.ArticleSummary]{List: list, Total: total, Page: page, PageSize: pageSize}))
+}
+
+// ListCategoryTree 返回树状三级分类
+func (s *HTTPServer) ListCategoryTree(ctx *web.Context) {
+	tree, err := s.contentService.GetCategoryTree(ctx.Req.Context())
+	if err != nil {
+		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
+		return
+	}
+	_ = ctx.RespJSONOK(dto.Success(tree))
 }
 
 func (s *HTTPServer) Run(addr string) error { return s.server.Start(addr) }

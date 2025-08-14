@@ -16,12 +16,6 @@ routes:
     target: "service://content-service"
     timeout: "30s"
     retries: 3
-  # 评论服务路由
-  comment:
-    prefix: "/api/comment"
-    target: "service://comment-service"
-    timeout: "30s"
-    retries: 3
   # 统计服务路由
   stat:
     prefix: "/api/stat"

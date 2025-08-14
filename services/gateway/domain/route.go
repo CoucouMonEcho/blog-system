@@ -17,7 +17,6 @@ type Route struct {
 type RouteConfig struct {
 	User    Route `yaml:"user"`
 	Content Route `yaml:"content"`
-	Comment Route `yaml:"comment"`
 	Stat    Route `yaml:"stat"`
 	Admin   Route `yaml:"admin"`
 }

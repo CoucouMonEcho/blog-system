@@ -27,10 +27,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("初始化日志失败: %v", err)
 	}
-	if _, err := infrastructure.InitDB(cfg); err != nil {
+	db, err := infrastructure.InitDB(cfg)
+	if err != nil {
 		lgr.LogWithContext("stat-service", "database", "ERROR", "数据库连接失败: %v", err)
 	}
+	repo := infrastructure.NewStatRepository(db)
 	http := api.NewHTTPServer(lgr)
+	// 注入 repo
+	http.SetRepository(repo)
 	addr := ":" + strconv.Itoa(cfg.App.Port)
 	if err := http.Run(addr); err != nil {
 		lgr.LogWithContext("stat-service", "main", "FATAL", "服务启动失败: %v", err)

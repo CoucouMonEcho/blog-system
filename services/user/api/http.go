@@ -72,7 +72,6 @@ func (s *HTTPServer) registerRoutes() {
 	s.server.Get("/health", s.HealthCheck)
 
 	// 公开接口
-	s.server.Post("/api/register", s.Register)
 	s.server.Post("/api/login", s.Login)
 
 	// 认证接口
@@ -93,27 +92,7 @@ func (s *HTTPServer) HealthCheck(ctx *web.Context) {
 	}))
 }
 
-// Register 用户注册
-func (s *HTTPServer) Register(ctx *web.Context) {
-	var req struct {
-		Username string `json:"username" binding:"required,min=3,max=20"`
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required,min=6"`
-	}
-
-	if err := ctx.BindJSON(&req); err != nil {
-		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
-		return
-	}
-
-	user, err := s.userService.Register(ctx.Req.Context(), req.Username, req.Email, req.Password)
-	if err != nil {
-		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrUserExists, err.Error()))
-		return
-	}
-
-	_ = ctx.RespJSONOK(dto.Success(user))
-}
+// Register 接口已下线，注册由 admin 后台负责
 
 // Login 用户登录
 func (s *HTTPServer) Login(ctx *web.Context) {

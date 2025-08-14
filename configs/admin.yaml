@@ -1,0 +1,13 @@
+app:
+  name: admin-service
+  port: 8005
+
+registry:
+  endpoints:
+    - "http://127.0.0.1:2379"
+
+log:
+  level: info
+  path: logs/admin-service.log
+
+

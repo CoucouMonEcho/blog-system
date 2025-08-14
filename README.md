@@ -151,20 +151,7 @@ service/
 
 ## 📡 API 文档
 
-### 用户服务 API
-
-#### 认证相关
-```http
-POST /api/register
-POST /api/login
-```
-
-#### 用户管理
-```http
-GET /user/info/{user_id}
-PUT /user/info/{user_id}
-POST /user/password/{user_id}
-```
+完整接口请查看 `docs/api.md`。
 
 ## 🔧 配置管理
 

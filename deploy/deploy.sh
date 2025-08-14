@@ -8,7 +8,6 @@ DEPLOY_PATH="/opt/blog-system"
 SERVICE_NAME="user-service"
 GATEWAY_SERVICE_NAME="gateway-service"
 CONTENT_SERVICE_NAME="content-service"
-COMMENT_SERVICE_NAME="comment-service"
 STAT_SERVICE_NAME="stat-service"
 LOG_PATH="/var/log/blog-system"
 
@@ -176,9 +175,7 @@ main() {
     deploy_service "${CONTENT_SERVICE_NAME}" "services/content" "content.yaml"
     check_port 8002 "内容服务"
 
-    # 部署评论服务
-    deploy_service "${COMMENT_SERVICE_NAME}" "services/comment" "comment.yaml"
-    check_port 8003 "评论服务"
+    # 评论服务已移除
 
     # 部署统计服务
     deploy_service "${STAT_SERVICE_NAME}" "services/stat" "stat.yaml"

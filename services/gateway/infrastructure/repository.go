@@ -41,12 +41,6 @@ func NewRouteRepository(cfg *GatewayConfig) *RouteRepository {
 			Timeout: parseDuration(cfg.Routes.Content.Timeout),
 			Retries: cfg.Routes.Content.Retries,
 		},
-		Comment: domain.Route{
-			Prefix:  cfg.Routes.Comment.Prefix,
-			Target:  cfg.Routes.Comment.Target,
-			Timeout: parseDuration(cfg.Routes.Comment.Timeout),
-			Retries: cfg.Routes.Comment.Retries,
-		},
 		Stat: domain.Route{
 			Prefix:  cfg.Routes.Stat.Prefix,
 			Target:  cfg.Routes.Stat.Target,
@@ -79,7 +73,7 @@ func (r *RouteRepository) GetRouteByPath(path string) *domain.Route {
 	defer r.mu.RUnlock()
 
 	// 检查各个路由前缀
-	routes := []domain.Route{r.routes.User, r.routes.Content, r.routes.Comment, r.routes.Stat, r.routes.Admin}
+	routes := []domain.Route{r.routes.User, r.routes.Content, r.routes.Stat, r.routes.Admin}
 	for _, route := range routes {
 		if strings.HasPrefix(path, route.Prefix) {
 			return &route
