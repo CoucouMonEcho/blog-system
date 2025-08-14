@@ -34,7 +34,32 @@ deploy_admin_service() {
     for pid in $pids; do kill -TERM "$pid" 2>/dev/null || true; done
     sleep 2
     for pid in $pids; do kill -KILL "$pid" 2>/dev/null || true; done
+    # 同步处理可能的 systemd 守护进程
+    if [ -n "$ss_bin" ]; then
+      progs=$("$ss_bin" -ltnp 2>/dev/null | awk "/:${PORT}\\b/ {print \$0}" | sed -nE 's/.*users:\(\("([^\"]+)".*/\1/p' | sort -u)
+    elif [ -n "$netstat_bin" ]; then
+      progs=$("$netstat_bin" -tlnp 2>/dev/null | awk "/:${PORT}\\b/ {print \$7}" | cut -d'/' -f2 | sort -u)
+    else
+      progs=""
+    fi
+    for prog in $progs; do
+      [ -z "$prog" ] && continue
+      svc="$prog"; [ -f "/etc/systemd/system/${svc}.service" ] || svc="${prog}.service"
+      systemctl stop "$svc" 2>/dev/null || true
+      systemctl disable "$svc" 2>/dev/null || true
+      systemctl mask "$svc" 2>/dev/null || true
+      if [ -f "/etc/systemd/system/${prog}.service" ]; then rm -f "/etc/systemd/system/${prog}.service"; fi
+    done
+    systemctl daemon-reload 2>/dev/null || true
   fi
+  # 等待端口彻底释放
+  for i in $(seq 1 10); do
+    if (ss -ltnp 2>/dev/null || netstat -tlnp 2>/dev/null) | grep -Eq ":${PORT}([^0-9]|$)"; then
+      sleep 1
+    else
+      break
+    fi
+  done
   # 更新配置文件（密码与日志路径）
   if [ ! -z "${BLOG_PASSWORD:-}" ]; then
     silent_exec sed -i "s/BLOG_PASSWORD/${BLOG_PASSWORD}/g" ${DEPLOY_PATH}/configs/admin.yaml

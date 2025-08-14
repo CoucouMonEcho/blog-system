@@ -255,7 +255,7 @@ main() {
 	deploy_user_service
 	
 	# 检查用户服务端口
-	check_port 8001 "用户服务"
+	check_port ${PORT} "用户服务"
 	
 	log_info "用户服务部署完成！"
 	log_info "用户服务地址: http://$(hostname -I | awk '{print $1}'):8001"
