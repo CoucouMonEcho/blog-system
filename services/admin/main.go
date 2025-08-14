@@ -32,10 +32,11 @@ func main() {
 
 	db, err := infrastructure.InitDB(cfg)
 	if err != nil {
-		// 同时输出到标准错误，便于 systemd 抓取
-		log.Printf("数据库连接失败: %v", err)
-		lgr.LogWithContext("admin-service", "database", "FATAL", "数据库连接失败: %v", err)
-		return
+		// 不再直接退出，先启动 HTTP，便于在线排查（日志+健康检查可用）
+		log.Printf("数据库连接失败: %v (将继续启动 HTTP 以便排查)", err)
+		lgr.LogWithContext("admin-service", "database", "ERROR", "数据库连接失败: %v (continue)", err)
+	} else {
+		lgr.LogWithContext("admin-service", "database", "INFO", "数据库连接成功")
 	}
 	userRepo := infrastructure.NewUserRepository(db)
 	artRepo := infrastructure.NewArticleRepository(db)
