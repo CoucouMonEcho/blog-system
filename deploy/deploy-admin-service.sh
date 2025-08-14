@@ -15,6 +15,13 @@ silent_exec() { "$@" >/dev/null 2>&1; }
 deploy_admin_service() {
   log_info "开始部署管理服务..."
   silent_exec systemctl stop ${SERVICE_NAME} || true
+  # 更新配置文件（密码与日志路径）
+  if [ ! -z "${BLOG_PASSWORD:-}" ]; then
+    silent_exec sed -i "s/BLOG_PASSWORD/${BLOG_PASSWORD}/g" ${DEPLOY_PATH}/configs/admin.yaml
+    log_info "数据库密码已更新"
+  fi
+  silent_exec sed -i "s|logs/.*\\.log|${DEPLOY_PATH}/logs/${SERVICE_NAME}.log|g" ${DEPLOY_PATH}/configs/admin.yaml
+  log_info "日志路径已更新为: ${DEPLOY_PATH}/logs/${SERVICE_NAME}.log"
   cd ${DEPLOY_PATH}/services/admin
   export GOOS=linux GOARCH=amd64 CGO_ENABLED=0
   # 统一模块与编译缓存目录
@@ -50,7 +57,13 @@ EOF
   silent_exec systemctl enable ${SERVICE_NAME}
   silent_exec systemctl start ${SERVICE_NAME}
   sleep 5
-  systemctl is-active --quiet ${SERVICE_NAME} || { log_error "启动失败"; systemctl status ${SERVICE_NAME} --no-pager -l; exit 1; }
+  systemctl is-active --quiet ${SERVICE_NAME} || { \
+    log_error "启动失败"; \
+    printf "=== 服务状态 ===\n"; systemctl status ${SERVICE_NAME} --no-pager -l; \
+    printf "=== 最近日志 ===\n"; journalctl -u ${SERVICE_NAME} -n 200 --no-pager -l || true; \
+    printf "=== 配置文件内容 ===\n"; cat ${DEPLOY_PATH}/configs/admin.yaml || true; \
+    printf "=== 日志目录 ===\n"; ls -la ${DEPLOY_PATH}/logs/ || true; \
+    exit 1; }
   log_info "${SERVICE_NAME} 启动成功"
 }
 
