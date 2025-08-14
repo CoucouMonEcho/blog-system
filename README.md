@@ -137,7 +137,7 @@ service/
 
 ## 📡 API 文档
 
-详见 `docs/api.md`（已与当前路由保持一致，去除评论模块、更新 content 与 admin 接口）。
+详见 `docs/api.md`
 
 ## 🔧 配置管理
 

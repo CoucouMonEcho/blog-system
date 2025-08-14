@@ -38,7 +38,6 @@ show_help() {
     echo "  all            所有服务"
     echo "  user           用户服务"
     echo "  content        内容服务"
-    echo "  comment        评论服务"
     echo "  stat           统计服务"
     echo "  gateway        网关服务"
     echo "  common         公共模块"
@@ -60,7 +59,6 @@ list_services() {
     echo "服务状态:"
     systemctl status user-service --no-pager -l | head -5
     systemctl status content-service --no-pager -l | head -5
-    systemctl status comment-service --no-pager -l | head -5
     systemctl status stat-service --no-pager -l | head -5
     systemctl status gateway-service --no-pager -l | head -5
 }
@@ -74,8 +72,6 @@ show_status() {
         systemctl status user-service --no-pager -l
         echo ""
         systemctl status content-service --no-pager -l
-        echo ""
-        systemctl status comment-service --no-pager -l
         echo ""
         systemctl status stat-service --no-pager -l
         echo ""
@@ -97,7 +93,6 @@ restart_service() {
         log_info "重启所有服务..."
         silent_exec systemctl restart user-service
         silent_exec systemctl restart content-service
-        silent_exec systemctl restart comment-service
         silent_exec systemctl restart stat-service
         silent_exec systemctl restart gateway-service
         log_info "所有服务重启完成"

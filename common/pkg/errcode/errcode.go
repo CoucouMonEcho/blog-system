@@ -38,12 +38,6 @@ const (
 	ErrCategoryNotFound
 )
 
-// 评论服务错误码
-const (
-	ErrCommentNotFound = 60001 + iota
-	ErrCommentForbidden
-)
-
 // ErrorMessage 错误码对应的消息
 var ErrorMessage = map[int]string{
 	OK:              "成功",
@@ -68,9 +62,6 @@ var ErrorMessage = map[int]string{
 	ErrArticleNotFound:  "文章不存在",
 	ErrTagNotFound:      "标签不存在",
 	ErrCategoryNotFound: "分类不存在",
-
-	ErrCommentNotFound:  "评论不存在",
-	ErrCommentForbidden: "评论被禁止",
 }
 
 // GetMessage 获取错误消息
