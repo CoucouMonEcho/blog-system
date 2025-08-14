@@ -15,15 +15,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.24.2'
-    - name: Build user service binary (linux/amd64)
-      run: |
-        set -euo pipefail
-        cd services/user
-        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o user-service .
+    # common 模块无需构建二进制
       
     - name: Deploy common module
       uses: appleboy/ssh-action@v0.1.5
@@ -80,11 +72,11 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.24.2'
-    - name: Build gateway service binary (linux/amd64)
+    - name: Build user service binary (linux/amd64)
       run: |
         set -euo pipefail
-        cd services/gateway
-        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o gateway-service .
+        cd services/user
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o user-service .
     # 由远端服务器本地构建，CI 不做交叉编译
       
     - name: Deploy user service
@@ -160,11 +152,11 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.24.2'
-    - name: Build stat service binary (linux/amd64)
+    - name: Build gateway service binary (linux/amd64)
       run: |
         set -euo pipefail
-        cd services/stat
-        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o stat-service .
+        cd services/gateway
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o gateway-service .
       
     - name: Check user service dependency
       uses: appleboy/ssh-action@v0.1.5
@@ -260,11 +252,11 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.24.2'
-    - name: Build content service binary (linux/amd64)
+    - name: Build stat service binary (linux/amd64)
       run: |
         set -euo pipefail
-        cd services/content
-        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o content-service .
+        cd services/stat
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o stat-service .
     # 由远端服务器本地构建，CI 不做交叉编译
     - name: Prepare remote
       uses: appleboy/ssh-action@v0.1.5
@@ -311,11 +303,11 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.24.2'
-    - name: Build admin service binary (linux/amd64)
+    - name: Build content service binary (linux/amd64)
       run: |
         set -euo pipefail
-        cd services/admin
-        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o admin-service .
+        cd services/content
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o content-service .
     - name: Prepare remote
       uses: appleboy/ssh-action@v0.1.5
       with:
@@ -361,7 +353,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    # 由远端服务器本地构建，CI 不做交叉编译
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.2'
+    - name: Build admin service binary (linux/amd64)
+      run: |
+        set -euo pipefail
+        cd services/admin
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o admin-service .
     - name: Prepare remote
       uses: appleboy/ssh-action@v0.1.5
       with:

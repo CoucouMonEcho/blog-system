@@ -5,11 +5,13 @@ go 1.24.2
 require (
 	blog-system/common v0.0.0
 	github.com/CoucouMonEcho/go-framework v0.1.4
+	github.com/go-sql-driver/mysql v1.9.3
 	go.etcd.io/etcd/client/v3 v3.6.2
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
