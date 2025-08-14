@@ -142,11 +142,17 @@ func (s *HTTPServer) GetUserInfo(ctx *web.Context) {
 	_ = ctx.RespJSONOK(dto.Success(user))
 }
 
-// UpdateUserInfo 更新用户信息
+// UpdateUserInfo 更新用户信息（使用 JWT 中的 user_id）
 func (s *HTTPServer) UpdateUserInfo(ctx *web.Context) {
-	userID, err := ctx.PathValue("user_id").AsInt64()
-	if err != nil {
-		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
+	// 从认证中间件写入的上下文中获取用户 ID
+	var userID int64
+	if v, ok := ctx.UserValues["user_id"]; ok {
+		if id, ok2 := v.(int64); ok2 {
+			userID = id
+		}
+	}
+	if userID == 0 {
+		_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrUnauthorized, "未认证或无效的用户"))
 		return
 	}
 
@@ -180,11 +186,16 @@ func (s *HTTPServer) UpdateUserInfo(ctx *web.Context) {
 	_ = ctx.RespJSONOK(dto.SuccessNil())
 }
 
-// ChangePassword 修改密码
+// ChangePassword 修改密码（使用 JWT 中的 user_id）
 func (s *HTTPServer) ChangePassword(ctx *web.Context) {
-	userID, err := ctx.PathValue("user_id").AsInt64()
-	if err != nil {
-		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
+	var userID int64
+	if v, ok := ctx.UserValues["user_id"]; ok {
+		if id, ok2 := v.(int64); ok2 {
+			userID = id
+		}
+	}
+	if userID == 0 {
+		_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrUnauthorized, "未认证或无效的用户"))
 		return
 	}
 
