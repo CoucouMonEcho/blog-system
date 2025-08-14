@@ -64,6 +64,8 @@ EOF
     printf "=== 配置文件内容 ===\n"; cat ${DEPLOY_PATH}/configs/admin.yaml || true; \
     printf "=== 应用日志(尾部) ===\n"; tail -n 200 ${DEPLOY_PATH}/logs/${SERVICE_NAME}.log || true; \
     printf "=== 端口占用检查 ===\n"; (ss -ltnp 2>/dev/null || netstat -tlnp 2>/dev/null) | grep -E ":${PORT:-8003}([^0-9]|$)" || true; \
+    printf "=== 可执行文件检查 ===\n"; ls -lah ${DEPLOY_PATH}/services/admin/ || true; file ${DEPLOY_PATH}/services/admin/${SERVICE_NAME} || true; \
+    printf "=== 动态链接检查 ===\n"; ldd ${DEPLOY_PATH}/services/admin/${SERVICE_NAME} || true; \
     printf "=== 日志目录 ===\n"; ls -la ${DEPLOY_PATH}/logs/ || true; \
     exit 1; }
   log_info "${SERVICE_NAME} 启动成功"
