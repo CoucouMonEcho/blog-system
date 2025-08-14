@@ -141,7 +141,7 @@ jobs:
   # 部署网关服务
   deploy-gateway-service:
     runs-on: ubuntu-latest
-    needs: [deploy-user-service, deploy-content-service, deploy-stat-service, deploy-admin-service]
+    needs: [deploy-admin-service]
     outputs:
       gateway-deployed: ${{ steps.deploy-gateway.outputs.success }}
     
@@ -244,7 +244,7 @@ jobs:
   # 部署统计服务（可并行，依赖 common）
   deploy-stat-service:
     runs-on: ubuntu-latest
-    needs: deploy-common
+    needs: [deploy-user-service, deploy-content-service]
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -349,7 +349,7 @@ jobs:
   # 部署管理服务（可与其他并行，作为健康检查/后台入口）
   deploy-admin-service:
     runs-on: ubuntu-latest
-    needs: deploy-common
+    needs: [deploy-user-service, deploy-content-service]
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -389,9 +389,11 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        envs: BLOG_PASSWORD
         script: |
           set -euo pipefail
           exec 2>&1
           cd /opt/blog-system
+          export BLOG_PASSWORD='${{ secrets.BLOG_PASSWORD }}'
           chmod +x deploy/deploy-admin-service.sh
           ./deploy/deploy-admin-service.sh
