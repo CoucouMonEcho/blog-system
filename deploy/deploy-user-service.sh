@@ -47,19 +47,21 @@ deploy_user_service() {
 	silent_exec sed -i "s|logs/.*\.log|${DEPLOY_PATH}/logs/${SERVICE_NAME}.log|g" ${DEPLOY_PATH}/configs/user.yaml
 	log_info "日志路径已更新为: ${DEPLOY_PATH}/logs/${SERVICE_NAME}.log"
 	
-	# 构建应用
-	log_info "构建应用..."
+	# 安装二进制
+	log_info "安装二进制..."
 	cd ${DEPLOY_PATH}/services/user
-	export GOOS=linux
-	export GOARCH=amd64
-	export CGO_ENABLED=0
-    # 统一模块与编译缓存目录
-    export GOMODCACHE=${GOMODCACHE:-/opt/blog-system/gomodcache}
-    export GOCACHE=${GOCACHE:-/opt/blog-system/gocache}
-    mkdir -p "$GOMODCACHE" "$GOCACHE"
-    # 不在部署脚本执行 go mod tidy；仅下载依赖并构建
-    silent_exec go mod download
-    silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .
+	# 如果 CI 已上传二进制则直接使用，否则回退到构建
+	if [ ! -f "${SERVICE_NAME}" ]; then
+		export GOOS=linux
+		export GOARCH=amd64
+		export CGO_ENABLED=0
+		export GOMODCACHE=${GOMODCACHE:-/opt/blog-system/gomodcache}
+		export GOCACHE=${GOCACHE:-/opt/blog-system/gocache}
+		mkdir -p "$GOMODCACHE" "$GOCACHE"
+		log_info "未检测到二进制，回退为远端构建"
+		silent_exec go mod download
+		silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .
+	fi
 	if [ ! -f "${SERVICE_NAME}" ]; then
 		log_error "应用构建失败"
 		exit 1

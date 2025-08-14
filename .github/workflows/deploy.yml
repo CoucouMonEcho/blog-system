@@ -15,6 +15,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.2'
+    - name: Build user service binary (linux/amd64)
+      run: |
+        set -euo pipefail
+        cd services/user
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o user-service .
       
     - name: Deploy common module
       uses: appleboy/ssh-action@v0.1.5
@@ -67,6 +76,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.2'
+    - name: Build gateway service binary (linux/amd64)
+      run: |
+        set -euo pipefail
+        cd services/gateway
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o gateway-service .
     # 由远端服务器本地构建，CI 不做交叉编译
       
     - name: Deploy user service
@@ -89,7 +107,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/user,configs/user.yaml,deploy/deploy-user-service.sh"
+        source: "services/user,user-service,configs/user.yaml,deploy/deploy-user-service.sh"
         target: /opt/blog-system
         overwrite: true
         
@@ -138,6 +156,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.2'
+    - name: Build stat service binary (linux/amd64)
+      run: |
+        set -euo pipefail
+        cd services/stat
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o stat-service .
       
     - name: Check user service dependency
       uses: appleboy/ssh-action@v0.1.5
@@ -183,7 +210,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/gateway,configs/gateway.yaml,deploy/deploy-gateway-service.sh"
+        source: "services/gateway,gateway-service,configs/gateway.yaml,deploy/deploy-gateway-service.sh"
         target: /opt/blog-system
         overwrite: true
         
@@ -229,6 +256,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.2'
+    - name: Build content service binary (linux/amd64)
+      run: |
+        set -euo pipefail
+        cd services/content
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o content-service .
     # 由远端服务器本地构建，CI 不做交叉编译
     - name: Prepare remote
       uses: appleboy/ssh-action@v0.1.5
@@ -248,7 +284,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/stat,configs/stat.yaml,deploy/deploy-stat-service.sh"
+        source: "services/stat,stat-service,configs/stat.yaml,deploy/deploy-stat-service.sh"
         target: /opt/blog-system
         overwrite: true
     - name: Execute stat service deployment
@@ -271,6 +307,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.2'
+    - name: Build admin service binary (linux/amd64)
+      run: |
+        set -euo pipefail
+        cd services/admin
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w" -o admin-service .
     - name: Prepare remote
       uses: appleboy/ssh-action@v0.1.5
       with:
@@ -289,7 +334,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/content,configs/content.yaml,deploy/deploy-content-service.sh"
+        source: "services/content,content-service,configs/content.yaml,deploy/deploy-content-service.sh"
         target: /opt/blog-system
         overwrite: true
     - name: Execute content service deployment
@@ -335,7 +380,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/admin,deploy/deploy-admin-service.sh"
+        source: "services/admin,admin-service,deploy/deploy-admin-service.sh"
         target: /opt/blog-system
         overwrite: true
     - name: Execute admin service deployment

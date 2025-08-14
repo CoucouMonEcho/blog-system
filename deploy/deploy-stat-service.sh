@@ -17,14 +17,16 @@ deploy_stat_service() {
   silent_exec systemctl stop ${SERVICE_NAME} || true
   silent_exec sed -i "s|logs/.*\\.log|${DEPLOY_PATH}/logs/${SERVICE_NAME}.log|g" ${DEPLOY_PATH}/configs/stat.yaml
   cd ${DEPLOY_PATH}/services/stat
-  export GOOS=linux GOARCH=amd64 CGO_ENABLED=0
-  # 统一模块与编译缓存目录
-  export GOMODCACHE=${GOMODCACHE:-/opt/blog-system/gomodcache}
-  export GOCACHE=${GOCACHE:-/opt/blog-system/gocache}
-  mkdir -p "$GOMODCACHE" "$GOCACHE"
-  # 不 tidy；仅下载依赖并构建
-  silent_exec go mod download
-  silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .
+  # 如果 CI 已上传二进制则直接使用，否则回退到构建
+  if [ ! -f "${SERVICE_NAME}" ]; then
+    export GOOS=linux GOARCH=amd64 CGO_ENABLED=0
+    export GOMODCACHE=${GOMODCACHE:-/opt/blog-system/gomodcache}
+    export GOCACHE=${GOCACHE:-/opt/blog-system/gocache}
+    mkdir -p "$GOMODCACHE" "$GOCACHE"
+    log_info "未检测到二进制，回退为远端构建"
+    silent_exec go mod download
+    silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} . || go build -o ${SERVICE_NAME} .
+  fi
   [ -f "${SERVICE_NAME}" ] || { log_error "构建失败"; exit 1; }
   cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
 [Unit]
