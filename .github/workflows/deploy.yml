@@ -99,7 +99,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/user,user-service,configs/user.yaml,deploy/deploy-user-service.sh"
+        source: "services/user,user-service,configs/*.yaml,deploy/deploy-user-service.sh"
         target: /opt/blog-system
         overwrite: true
         
@@ -202,7 +202,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/gateway,gateway-service,configs/gateway.yaml,deploy/deploy-gateway-service.sh"
+        source: "services/gateway,gateway-service,configs/*.yaml,deploy/deploy-gateway-service.sh"
         target: /opt/blog-system
         overwrite: true
         
@@ -276,7 +276,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/stat,stat-service,configs/stat.yaml,deploy/deploy-stat-service.sh"
+        source: "services/stat,stat-service,configs/*.yaml,deploy/deploy-stat-service.sh"
         target: /opt/blog-system
         overwrite: true
     - name: Execute stat service deployment
@@ -326,7 +326,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/content,content-service,configs/content.yaml,deploy/deploy-content-service.sh"
+        source: "services/content,content-service,configs/*.yaml,deploy/deploy-content-service.sh"
         target: /opt/blog-system
         overwrite: true
     - name: Execute content service deployment
@@ -380,7 +380,7 @@ jobs:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "services/admin,admin-service,deploy/deploy-admin-service.sh"
+        source: "services/admin,admin-service,configs/*.yaml,deploy/deploy-admin-service.sh"
         target: /opt/blog-system
         overwrite: true
     - name: Execute admin service deployment
