@@ -62,10 +62,7 @@ func NewHTTPServer(lgr logger.Logger) *HTTPServer {
 		// 此处应调用 user-service 验证管理员角色，这里简化直接返回
 		_ = ctx.RespJSONOK(dto.Success(map[string]any{"token": "mock-admin-token"}))
 	})
-	// 简单健康检查，确保即使依赖不可用也能返回
-	s.server.Get("/health", func(ctx *web.Context) {
-		_ = ctx.RespJSONOK(dto.Success(map[string]any{"status": "ok", "service": "admin"}))
-	})
+	// 其余路由
 
 	// 分级菜单
 	// 用户管理
