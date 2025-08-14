@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"blog-system/common/pkg/logger"
 	"fmt"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/CoucouMonEcho/go-framework/orm"
 	ormotel "github.com/CoucouMonEcho/go-framework/orm/middlewares/opentelemetry"
 	ormprom "github.com/CoucouMonEcho/go-framework/orm/middlewares/prometheus"
+	ormql "github.com/CoucouMonEcho/go-framework/orm/middlewares/querylog"
 	_ "github.com/go-sql-driver/mysql"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -24,16 +26,20 @@ func parseDuration(s string) time.Duration {
 }
 
 func InitDB(cfg *AppConfig) (*orm.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local&interpolateParams=true",
 		cfg.Database.User,
 		cfg.Database.Password,
 		cfg.Database.Host,
 		cfg.Database.Port,
 		cfg.Database.Name,
 	)
+	ql := ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
+		logger.L().LogWithContext("content-service", "orm", "DEBUG", "sql=%s args=%v", sql, args)
+	}).Build()
 	return orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(
 		ormotel.NewMiddlewareBuilder(nil).Build(),
 		ormprom.NewMiddlewareBuilder("blog", "content", "orm", "content orm latency").Build(),
+		ql,
 	))
 }
 

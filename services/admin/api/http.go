@@ -18,17 +18,26 @@ import (
 )
 
 type HTTPServer struct {
-	logger logger.Logger
 	server *web.HTTPServer
 	app    *application.AdminService
 }
 
-func NewHTTPServer(lgr logger.Logger) *HTTPServer {
+func NewHTTPServer() *HTTPServer {
+	// Request ID 中间件
+	requestIDMiddleware := func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			requestID := logger.GenerateRequestID()
+			ctx.Req = ctx.Req.WithContext(logger.WithRequestID(ctx.Req.Context(), requestID))
+			ctx.Resp.Header().Set("X-Request-ID", requestID)
+			next(ctx)
+		}
+	}
+
 	customRecover := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
 			defer func() {
 				if r := recover(); r != nil {
-					lgr.LogWithContext("admin-service", "recover", "ERROR", "panic=%v path=%s\nstack=%s", r, ctx.Req.URL.Path, string(debug.Stack()))
+					logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "admin-service", "recover", "ERROR", "panic=%v path=%s\nstack=%s", r, ctx.Req.URL.Path, string(debug.Stack()))
 					_ = ctx.RespJSON(http.StatusInternalServerError, map[string]any{"error": "内部服务错误"})
 				}
 			}()
@@ -39,19 +48,20 @@ func NewHTTPServer(lgr logger.Logger) *HTTPServer {
 		return func(ctx *web.Context) {
 			start := time.Now()
 			next(ctx)
-			lgr.LogWithContext("admin-service", "http", "INFO", "请求: %s %s %d %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start))
+			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "admin-service", "http", "INFO", "请求: %s %s %d %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start))
 		}
 	}
 	server := web.NewHTTPServer(
-		web.ServerWithLogger(lgr.Error),
+		web.ServerWithLogger(logger.L().Error),
 		web.ServerWithMiddlewares(
+			requestIDMiddleware,
 			customRecover,
 			requestLogger,
 			webotel.MiddlewareBuilder{}.Build(),
 			webprom.MiddlewareBuilder{Namespace: "blog", Subsystem: "admin", Name: "http", Help: "admin http latency"}.Build(),
 		),
 	)
-	s := &HTTPServer{logger: lgr, server: server}
+	s := &HTTPServer{server: server}
 	s.server.Get("/health", func(ctx *web.Context) {
 		_ = ctx.RespJSONOK(dto.Success(map[string]any{"status": "ok", "service": "admin"}))
 	})

@@ -30,6 +30,8 @@ func main() {
 		log.Fatalf("初始化日志失败: %v", err)
 	}
 
+	// 初始化全局 Logger
+	logger.Init(lgr)
 	db, err := infrastructure.InitDB(cfg)
 	if err != nil {
 		log.Printf("数据库连接失败: %v", err)
@@ -49,7 +51,7 @@ func main() {
 	promCli := infrastructure.NewPrometheusClient("", 0)
 	app := application.NewAdminService(userRepo, artRepo, catRepo, lgr, cache, userCli, statCli, promCli)
 
-	http := api.NewHTTPServer(lgr)
+	http := api.NewHTTPServer()
 	http.SetApp(app)
 	// 注册服务发现（失败不阻断启动）
 	if err := infrastructure.RegisterService(cfg); err != nil {

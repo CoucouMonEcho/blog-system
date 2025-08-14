@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"blog-system/common/pkg/logger"
+
 	"blog-system/services/user/api"
 	"blog-system/services/user/application"
 	"blog-system/services/user/infrastructure"
@@ -39,6 +40,8 @@ func main() {
 		log.Fatalf("初始化日志系统失败: %v", err)
 	}
 
+	// 初始化全局 Logger
+	logger.Init(loggerInstance)
 	// 记录服务启动日志
 	loggerInstance.LogWithContext("user-service", "main", "INFO", "开始启动用户服务")
 	loggerInstance.LogWithContext("user-service", "main", "INFO", "配置文件: %s", configPath)
@@ -69,7 +72,7 @@ func main() {
 	loggerInstance.LogWithContext("user-service", "application", "INFO", "用户应用服务初始化完成")
 
 	// 启动 HTTP 服务
-	server := api.NewHTTPServer(userService, loggerInstance)
+	server := api.NewHTTPServer(userService)
 	loggerInstance.LogWithContext("user-service", "api", "INFO", "HTTP服务器初始化完成")
 
 	// 注册到注册中心

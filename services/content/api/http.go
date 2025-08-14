@@ -18,16 +18,25 @@ import (
 
 type HTTPServer struct {
 	contentService *application.ContentAppService
-	logger         logger.Logger
 	server         *web.HTTPServer
 }
 
-func NewHTTPServer(contentService *application.ContentAppService, logger logger.Logger) *HTTPServer {
+func NewHTTPServer(contentService *application.ContentAppService) *HTTPServer {
+	// Request ID 中间件
+	requestIDMiddleware := func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			requestID := logger.GenerateRequestID()
+			ctx.Req = ctx.Req.WithContext(logger.WithRequestID(ctx.Req.Context(), requestID))
+			ctx.Resp.Header().Set("X-Request-ID", requestID)
+			next(ctx)
+		}
+	}
+
 	customRecover := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.LogWithContext("content-service", "recover", "ERROR", "panic=%v method=%s path=%s remote=%s\nheaders=%v\nstack=%s", r, ctx.Req.Method, ctx.Req.URL.Path, ctx.Req.RemoteAddr, ctx.Req.Header, string(debug.Stack()))
+					logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "content-service", "recover", "ERROR", "panic=%v method=%s path=%s remote=%s\nheaders=%v\nstack=%s", r, ctx.Req.Method, ctx.Req.URL.Path, ctx.Req.RemoteAddr, ctx.Req.Header, string(debug.Stack()))
 					_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, "内部服务错误"))
 				}
 			}()
@@ -39,13 +48,14 @@ func NewHTTPServer(contentService *application.ContentAppService, logger logger.
 		return func(ctx *web.Context) {
 			start := time.Now()
 			next(ctx)
-			logger.LogWithContext("content-service", "http", "INFO", "请求: %s %s %d %s %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
+			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "content-service", "http", "INFO", "请求: %s %s %d %s %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
 		}
 	}
 
 	server := web.NewHTTPServer(
-		web.ServerWithLogger(logger.Error),
+		web.ServerWithLogger(logger.L().Error),
 		web.ServerWithMiddlewares(
+			requestIDMiddleware,
 			customRecover,
 			requestLogger,
 			webotel.MiddlewareBuilder{}.Build(),
@@ -53,7 +63,7 @@ func NewHTTPServer(contentService *application.ContentAppService, logger logger.
 		),
 	)
 
-	s := &HTTPServer{contentService: contentService, logger: logger, server: server}
+	s := &HTTPServer{contentService: contentService, server: server}
 	s.registerRoutes()
 	return s
 }

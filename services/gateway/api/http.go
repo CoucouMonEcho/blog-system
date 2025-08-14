@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"time"
@@ -17,33 +16,42 @@ import (
 // HTTPServer HTTP服务器
 type HTTPServer struct {
 	gatewayService *application.GatewayService
-	logger         logger.Logger
 	server         *web.HTTPServer
 }
 
 // NewHTTPServer 创建HTTP服务器
-func NewHTTPServer(gatewayService *application.GatewayService, logger logger.Logger) *HTTPServer {
+func NewHTTPServer(gatewayService *application.GatewayService) *HTTPServer {
+	// Request ID 中间件
+	requestIDMiddleware := func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			requestID := logger.GenerateRequestID()
+			ctx.Req = ctx.Req.WithContext(logger.WithRequestID(ctx.Req.Context(), requestID))
+			ctx.Resp.Header().Set("X-Request-ID", requestID)
+			next(ctx)
+		}
+	}
+
 	// 使用go-framework的recover中间件
 	recoverMiddleware := recover.MiddlewareBuilder{
 		Code: http.StatusInternalServerError,
 		Data: []byte("Internal Server Error"),
 		Log: func(ctx *web.Context) {
-			logger.LogWithContext("gateway-service", "recover", "ERROR", "服务恢复中间件触发")
+			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "gateway-service", "recover", "ERROR", "服务恢复中间件触发")
 		},
 	}.Build()
 
 	server := web.NewHTTPServer(
-		web.ServerWithLogger(logger.Error),
+		web.ServerWithLogger(logger.L().Error),
 		web.ServerWithMiddlewares(
+			requestIDMiddleware,
 			recoverMiddleware,
-			loggerMiddleware(logger),
+			loggerMiddleware(),
 			corsMiddleware(),
 		),
 	)
 
 	return &HTTPServer{
 		gatewayService: gatewayService,
-		logger:         logger,
 		server:         server,
 	}
 }
@@ -51,22 +59,22 @@ func NewHTTPServer(gatewayService *application.GatewayService, logger logger.Log
 // Run 启动HTTP服务器
 func (s *HTTPServer) Run(addr string) error {
 	// 注册路由
-	s.server.Get("/health", healthHandler(s.logger))
-	s.server.Post("/api/*", proxyHandler(s.gatewayService, s.logger))
-	s.server.Get("/api/*", proxyHandler(s.gatewayService, s.logger))
+	s.server.Get("/health", healthHandler())
+	s.server.Post("/api/*", proxyHandler(s.gatewayService))
+	s.server.Get("/api/*", proxyHandler(s.gatewayService))
 
 	return s.server.Start(addr)
 }
 
 // loggerMiddleware 日志中间件
-func loggerMiddleware(logger logger.Logger) web.Middleware {
+func loggerMiddleware() web.Middleware {
 	return func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
 			start := time.Now()
 
 			next(ctx)
 
-			logger.LogWithContext("gateway-service", "http", "INFO",
+			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "gateway-service", "http", "INFO",
 				"请求: %s %s %d %s %s",
 				ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
 		}
@@ -92,7 +100,7 @@ func corsMiddleware() web.Middleware {
 }
 
 // healthHandler 健康检查处理器
-func healthHandler(logger logger.Logger) web.Handler {
+func healthHandler() web.Handler {
 	return func(ctx *web.Context) {
 		_ = ctx.RespJSON(http.StatusOK, map[string]interface{}{
 			"status":  "ok",
@@ -103,7 +111,7 @@ func healthHandler(logger logger.Logger) web.Handler {
 }
 
 // proxyHandler 代理处理器
-func proxyHandler(gatewayService *application.GatewayService, logger logger.Logger) web.Handler {
+func proxyHandler(gatewayService *application.GatewayService) web.Handler {
 	return func(ctx *web.Context) {
 		// 获取客户端IP
 		clientIP := ctx.Req.RemoteAddr
@@ -114,7 +122,7 @@ func proxyHandler(gatewayService *application.GatewayService, logger logger.Logg
 		// 读取请求体
 		body, err := io.ReadAll(ctx.Req.Body)
 		if err != nil {
-			logger.LogWithContext("gateway-service", "proxy", "ERROR", "读取请求体失败: %v", err)
+			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "gateway-service", "proxy", "ERROR", "读取请求体失败: %v", err)
 			_ = ctx.RespJSON(http.StatusBadRequest, map[string]interface{}{"error": "读取请求体失败"})
 			return
 		}
@@ -129,10 +137,10 @@ func proxyHandler(gatewayService *application.GatewayService, logger logger.Logg
 		}
 
 		// 执行代理请求
-		reqCtx := context.Background()
+		reqCtx := ctx.Req.Context()
 		resp, err := gatewayService.ProxyRequest(reqCtx, proxyReq)
 		if err != nil {
-			logger.LogWithContext("gateway-service", "proxy", "ERROR", "代理请求失败: %v", err)
+			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "gateway-service", "proxy", "ERROR", "代理请求失败: %v", err)
 			_ = ctx.RespJSON(http.StatusInternalServerError, map[string]interface{}{"error": "代理请求失败"})
 			return
 		}

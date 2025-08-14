@@ -29,6 +29,6 @@ registry:
     - "http://127.0.0.1:2379"
 
 log:
-  level: info
+  level: debug
   path: logs/content-service.log
 

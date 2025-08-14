@@ -85,11 +85,12 @@ func (r *ArticleRepository) List(ctx context.Context, page, pageSize int) ([]*do
 	if err != nil {
 		return nil, 0, err
 	}
-	all, err := orm.NewSelector[domain.Article](r.db).GetMulti(ctx)
+	// COUNT(1)
+	cnt, err := orm.NewSelector[domain.Article](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	return list, int64(len(all)), nil
+	return list, cnt.ID, nil
 }
 
 // Count 返回文章总数
@@ -126,11 +127,11 @@ func (r *CategoryRepository) List(ctx context.Context, page, pageSize int) ([]*d
 	if err != nil {
 		return nil, 0, err
 	}
-	all, err := orm.NewSelector[domain.Category](r.db).GetMulti(ctx)
+	cnt, err := orm.NewSelector[domain.Category](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	return list, int64(len(all)), nil
+	return list, cnt.ID, nil
 }
 
 // Count 返回分类总数

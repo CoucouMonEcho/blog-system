@@ -17,20 +17,29 @@ import (
 // HTTPServer HTTP 服务器
 type HTTPServer struct {
 	userService *application.UserAppService
-	logger      logger.Logger
 	server      *web.HTTPServer
 }
 
 // NewHTTPServer 创建 HTTP 服务器
-func NewHTTPServer(userService *application.UserAppService, logger logger.Logger) *HTTPServer {
+func NewHTTPServer(userService *application.UserAppService) *HTTPServer {
+	// Request ID 中间件
+	requestIDMiddleware := func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			requestID := logger.GenerateRequestID()
+			ctx.Req = ctx.Req.WithContext(logger.WithRequestID(ctx.Req.Context(), requestID))
+			ctx.Resp.Header().Set("X-Request-ID", requestID)
+			next(ctx)
+		}
+	}
+
 	// 恢复中间件
 	customRecover := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
 			defer func() {
 				if r := recover(); r != nil {
 					stack := debug.Stack()
-					logger.LogWithContext(
-						"user-service", "recover", "ERROR",
+					logger.L().LogWithContextAndRequestID(
+						ctx.Req.Context(), "user-service", "recover", "ERROR",
 						"panic=%v method=%s path=%s remote=%s\nheaders=%v\nstack=%s",
 						r, ctx.Req.Method, ctx.Req.URL.Path, ctx.Req.RemoteAddr, ctx.Req.Header, string(stack),
 					)
@@ -45,15 +54,16 @@ func NewHTTPServer(userService *application.UserAppService, logger logger.Logger
 		return func(ctx *web.Context) {
 			start := time.Now()
 			next(ctx)
-			logger.LogWithContext("user-service", "http", "INFO",
+			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "user-service", "http", "INFO",
 				"请求: %s %s %d %s %s",
 				ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
 		}
 	}
 
 	server := web.NewHTTPServer(
-		web.ServerWithLogger(logger.Error),
+		web.ServerWithLogger(logger.L().Error),
 		web.ServerWithMiddlewares(
+			requestIDMiddleware,
 			customRecover,
 			requestLogger,
 			webprom.MiddlewareBuilder{Namespace: "blog", Subsystem: "user", Name: "http", Help: "user http latency"}.Build(),
@@ -61,7 +71,6 @@ func NewHTTPServer(userService *application.UserAppService, logger logger.Logger
 	)
 	svc := &HTTPServer{
 		userService: userService,
-		logger:      logger,
 		server:      server,
 	}
 	svc.registerRoutes()

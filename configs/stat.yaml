@@ -20,6 +20,6 @@ prometheus:
   address: "http://localhost:9090"
 
 log:
-  level: info
+  level: debug
   path: logs/stat-service.log
 

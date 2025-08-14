@@ -61,6 +61,5 @@ registry:
     - "http://127.0.0.1:2379"
 
 log:
-  level: info
-  # 实际路径由部署脚本决定
+  level: debug
   path: logs/gateway-service.log

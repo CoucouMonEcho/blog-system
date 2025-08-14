@@ -31,6 +31,8 @@ func main() {
 		log.Fatalf("初始化日志失败: %v", err)
 	}
 
+	// 初始化全局 Logger
+	logger.Init(lgr)
 	db, err := infrastructure.InitDB(cfg)
 	if err != nil {
 		lgr.LogWithContext("content-service", "database", "FATAL", "数据库连接失败: %v", err)
@@ -41,7 +43,7 @@ func main() {
 	repo := infrastructure.NewContentRepository(db)
 	app := application.NewContentService(repo, lgr, cache)
 
-	http := api.NewHTTPServer(app, lgr)
+	http := api.NewHTTPServer(app)
 	// 注册到注册中心
 	if err := infrastructure.RegisterService(cfg); err != nil {
 		lgr.LogWithContext("content-service", "registry", "ERROR", "注册到注册中心失败: %v", err)

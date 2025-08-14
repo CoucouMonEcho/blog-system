@@ -35,5 +35,4 @@ registry:
 
 log:
   level: debug
-  # 实际路径由部署脚本决定
   path: logs/user-service.log

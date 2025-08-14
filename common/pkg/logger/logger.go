@@ -1,15 +1,20 @@
 package logger
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
-// Logger 结构化日志接口
+// 单一职责：统一的全局日志中心 + 上下文获取能力
+
 type Logger interface {
 	Debug(format string, args ...any)
 	Info(format string, args ...any)
@@ -17,9 +22,9 @@ type Logger interface {
 	Error(format string, args ...any)
 	Fatal(format string, args ...any)
 	LogWithContext(service, path, level, format string, args ...any)
+	LogWithContextAndRequestID(ctx context.Context, service, path, level, format string, args ...any)
 }
 
-// StructuredLogger 结构化日志实现
 type StructuredLogger struct {
 	debugLogger *log.Logger
 	infoLogger  *log.Logger
@@ -29,7 +34,6 @@ type StructuredLogger struct {
 	level       string
 }
 
-// LogLevel 日志级别
 type LogLevel int
 
 const (
@@ -40,30 +44,82 @@ const (
 	FATAL
 )
 
-// Config 日志配置
 type Config struct {
 	Level string `yaml:"level"`
 	Path  string `yaml:"path"`
 }
 
+// 全局与上下文管理
+var (
+	gMu sync.RWMutex
+	gL  Logger
+)
+
+type ctxKey struct{}
+
+// Init 在服务启动时调用一次
+func Init(l Logger) {
+	gMu.Lock()
+	gL = l
+	gMu.Unlock()
+}
+
+// L 获取全局 Logger
+func L() Logger {
+	gMu.RLock()
+	defer gMu.RUnlock()
+	return gL
+}
+
+// With 将 Logger 写入上下文
+func With(ctx context.Context, l Logger) context.Context {
+	return context.WithValue(ctx, ctxKey{}, l)
+}
+
+// From 从上下文提取 Logger，若没有则返回全局
+func From(ctx context.Context) Logger {
+	if ctx != nil {
+		if v := ctx.Value(ctxKey{}); v != nil {
+			if l, ok := v.(Logger); ok {
+				return l
+			}
+		}
+	}
+	return L()
+}
+
+// GenerateRequestID generates a random request ID
+func GenerateRequestID() string {
+	bytes := make([]byte, 8)
+	_, _ = rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
+
+// WithRequestID returns a new context with the request ID
+func WithRequestID(ctx context.Context, requestID string) context.Context {
+	return context.WithValue(ctx, "request_id", requestID)
+}
+
+// GetRequestID returns the request ID from context
+func GetRequestID(ctx context.Context) string {
+	if id, ok := ctx.Value("request_id").(string); ok {
+		return id
+	}
+	return ""
+}
+
 // NewLogger 创建新的日志器
 func NewLogger(cfg *Config) (Logger, error) {
-	// 确保日志目录存在
 	logDir := filepath.Dir(cfg.Path)
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建日志目录失败: %w", err)
 	}
-
-	// 创建日志文件
 	logFile, err := os.OpenFile(cfg.Path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("创建日志文件失败: %w", err)
 	}
-
-	// 同时输出到文件和控制台
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 
-	// 创建不同级别的日志器
 	debugLogger := log.New(multiWriter, "[DEBUG] ", log.Ldate|log.Ltime|log.Lmicroseconds)
 	infoLogger := log.New(multiWriter, "[INFO] ", log.Ldate|log.Ltime|log.Lmicroseconds)
 	warnLogger := log.New(multiWriter, "[WARN] ", log.Ldate|log.Ltime|log.Lmicroseconds)
@@ -80,7 +136,6 @@ func NewLogger(cfg *Config) (Logger, error) {
 	}, nil
 }
 
-// getLogLevel 获取日志级别
 func (l *StructuredLogger) getLogLevel() LogLevel {
 	switch l.level {
 	case "debug":
@@ -98,40 +153,28 @@ func (l *StructuredLogger) getLogLevel() LogLevel {
 	}
 }
 
-// shouldLog 判断是否应该记录日志
-func (l *StructuredLogger) shouldLog(level LogLevel) bool {
-	return level >= l.getLogLevel()
-}
+func (l *StructuredLogger) shouldLog(level LogLevel) bool { return level >= l.getLogLevel() }
 
-// Debug 调试日志
 func (l *StructuredLogger) Debug(format string, args ...any) {
 	if l.shouldLog(DEBUG) {
 		l.debugLogger.Printf(format, args...)
 	}
 }
-
-// Info 信息日志
 func (l *StructuredLogger) Info(format string, args ...any) {
 	if l.shouldLog(INFO) {
 		l.infoLogger.Printf(format, args...)
 	}
 }
-
-// Warn 警告日志
 func (l *StructuredLogger) Warn(format string, args ...any) {
 	if l.shouldLog(WARN) {
 		l.warnLogger.Printf(format, args...)
 	}
 }
-
-// Error 错误日志
 func (l *StructuredLogger) Error(format string, args ...any) {
 	if l.shouldLog(ERROR) {
 		l.errorLogger.Printf(format, args...)
 	}
 }
-
-// Fatal 致命错误日志
 func (l *StructuredLogger) Fatal(format string, args ...any) {
 	if l.shouldLog(FATAL) {
 		l.fatalLogger.Printf(format, args...)
@@ -139,31 +182,63 @@ func (l *StructuredLogger) Fatal(format string, args ...any) {
 	}
 }
 
-// LogWithContext 带上下文的日志
 func (l *StructuredLogger) LogWithContext(service, path, level, format string, args ...any) {
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
-	context := fmt.Sprintf("[%s][%s][%s][%s] ", timestamp, service, path, level)
-
+	prefix := fmt.Sprintf("[%s][%s][%s][%s] ", timestamp, service, path, level)
 	switch level {
 	case "DEBUG":
 		if l.shouldLog(DEBUG) {
-			l.debugLogger.Printf(context+format, args...)
+			l.debugLogger.Printf(prefix+format, args...)
 		}
 	case "INFO":
 		if l.shouldLog(INFO) {
-			l.infoLogger.Printf(context+format, args...)
+			l.infoLogger.Printf(prefix+format, args...)
 		}
 	case "WARN":
 		if l.shouldLog(WARN) {
-			l.warnLogger.Printf(context+format, args...)
+			l.warnLogger.Printf(prefix+format, args...)
 		}
 	case "ERROR":
 		if l.shouldLog(ERROR) {
-			l.errorLogger.Printf(context+format, args...)
+			l.errorLogger.Printf(prefix+format, args...)
 		}
 	case "FATAL":
 		if l.shouldLog(FATAL) {
-			l.fatalLogger.Printf(context+format, args...)
+			l.fatalLogger.Printf(prefix+format, args...)
+			os.Exit(1)
+		}
+	}
+}
+
+func (l *StructuredLogger) LogWithContextAndRequestID(ctx context.Context, service, path, level, format string, args ...any) {
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	requestID := GetRequestID(ctx)
+	var prefix string
+	if requestID != "" {
+		prefix = fmt.Sprintf("[%s][%s][%s][%s][%s] ", timestamp, service, path, level, requestID)
+	} else {
+		prefix = fmt.Sprintf("[%s][%s][%s][%s] ", timestamp, service, path, level)
+	}
+	switch level {
+	case "DEBUG":
+		if l.shouldLog(DEBUG) {
+			l.debugLogger.Printf(prefix+format, args...)
+		}
+	case "INFO":
+		if l.shouldLog(INFO) {
+			l.infoLogger.Printf(prefix+format, args...)
+		}
+	case "WARN":
+		if l.shouldLog(WARN) {
+			l.warnLogger.Printf(prefix+format, args...)
+		}
+	case "ERROR":
+		if l.shouldLog(ERROR) {
+			l.errorLogger.Printf(prefix+format, args...)
+		}
+	case "FATAL":
+		if l.shouldLog(FATAL) {
+			l.fatalLogger.Printf(prefix+format, args...)
 			os.Exit(1)
 		}
 	}

@@ -38,7 +38,7 @@ user_service:
   timeout: 3000
 
 log:
-  level: info
+  level: debug
   path: logs/admin-service.log
 
 

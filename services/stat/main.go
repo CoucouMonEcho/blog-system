@@ -31,12 +31,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("初始化日志失败: %v", err)
 	}
+	// 初始化全局 Logger
+	logger.Init(lgr)
 	db, err := infrastructure.InitDB(cfg)
 	if err != nil {
 		lgr.LogWithContext("stat-service", "database", "ERROR", "数据库连接失败: %v", err)
 	}
 	repo := infrastructure.NewStatRepository(db)
-	http := api.NewHTTPServer(lgr)
+	http := api.NewHTTPServer()
 	// 注入 repo
 	http.SetRepository(repo)
 	// 启动 gRPC 服务（go-framework/micro）
