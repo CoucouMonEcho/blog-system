@@ -50,7 +50,18 @@ func (r *UserRepository) FindByID(ctx context.Context, id int64) (*domain.User, 
 func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	//TODO 规范化：去除前后空格，并按 MySQL collation 进行精确匹配
 	uname := strings.TrimSpace(username)
-	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(uname)).Get(ctx)
+
+	// 添加调试日志
+	selector := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(uname))
+	query, err := selector.Build()
+	if err != nil {
+		return nil, err
+	}
+	// 临时添加调试输出
+	println("[DEBUG] Built query:", query.SQL)
+	println("[DEBUG] Query args:", len(query.Args), query.Args)
+
+	user, err := selector.Get(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("用户不存在")

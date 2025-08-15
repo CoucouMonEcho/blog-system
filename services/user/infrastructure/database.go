@@ -1,15 +1,12 @@
 package infrastructure
 
 import (
-	"blog-system/common/pkg/logger"
 	"fmt"
 	"time"
 
 	"github.com/CoucouMonEcho/go-framework/cache"
 	"github.com/CoucouMonEcho/go-framework/orm"
-	ormotel "github.com/CoucouMonEcho/go-framework/orm/middlewares/opentelemetry"
 	ormprom "github.com/CoucouMonEcho/go-framework/orm/middlewares/prometheus"
-	ormql "github.com/CoucouMonEcho/go-framework/orm/middlewares/querylog"
 	_ "github.com/go-sql-driver/mysql"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -23,14 +20,19 @@ func InitDB(cfg *AppConfig) (*orm.DB, error) {
 		cfg.Database.Port,
 		cfg.Database.Name,
 	)
-	// 注入 query log，使用业务 logger
-	ql := ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
-		logger.L().LogWithContext("user-service", "orm", "DEBUG", "sql=%s args=%v", sql, args)
-	}).Build()
+	//// 注入 query log，使用业务 logger
+	//ql := ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
+	//	logger.L().LogWithContext("user-service", "orm", "DEBUG", "sql=%s args=%v", sql, args)
+	//}).Build()
+	//db, err := orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(
+	//	ormotel.NewMiddlewareBuilder(nil).Build(),
+	//	ormprom.NewMiddlewareBuilder("blog", "user", "orm", "user orm latency").Build(),
+	//	ql,
+	//))
+
+	//TODO 使用保守的中间件配置
 	db, err := orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(
-		ormotel.NewMiddlewareBuilder(nil).Build(),
 		ormprom.NewMiddlewareBuilder("blog", "user", "orm", "user orm latency").Build(),
-		ql,
 	))
 	if err != nil {
 		return nil, err
