@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 
+	"blog-system/common/pkg/logger"
 	"blog-system/services/user/domain"
 
 	"github.com/CoucouMonEcho/go-framework/orm"
@@ -51,23 +52,49 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 	//TODO 规范化：去除前后空格，并按 MySQL collation 进行精确匹配
 	uname := strings.TrimSpace(username)
 
-	// 添加调试日志
+	// 添加详细的调试日志
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "sess is: %v", r.db)
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "show tables is: %v",
+		orm.RawQuery[domain.User](r.db, "show tables;").Exec(ctx))
+
+	all, err := orm.RawQuery[domain.User](r.db, "select * from blog_user;").GetMulti(ctx)
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "select all is: %v",
+		all)
+
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Input username: %s", username)
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Trimmed username: %s", uname)
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Username type: %T, length: %d", uname, len(uname))
+
+	// 构建查询
 	selector := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(uname))
 	query, err := selector.Build()
 	if err != nil {
+		logger.L().LogWithContext("user-service", "repository", "ERROR", "Build error: %v", err)
 		return nil, err
 	}
-	// 临时添加调试输出
-	println("[DEBUG] Built query:", query.SQL)
-	println("[DEBUG] Query args:", len(query.Args), query.Args)
 
+	// 详细的查询信息
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Built query: %s", query.SQL)
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Query args count: %d", len(query.Args))
+	for i, arg := range query.Args {
+		logger.L().LogWithContext("user-service", "repository", "DEBUG", "Arg[%d]: %v (type: %T)", i, arg, arg)
+	}
+
+	// 执行查询
 	user, err := selector.Get(ctx)
 	if err != nil {
+		logger.L().LogWithContext("user-service", "repository", "ERROR", "Query execution error: %v", err)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("用户不存在")
 		}
 		return nil, err
 	}
+
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Query successful, user found: %v", user != nil)
+	if user != nil {
+		logger.L().LogWithContext("user-service", "repository", "DEBUG", "User ID: %d, Username: %s", user.ID, user.Username)
+	}
+
 	return user, nil
 }
 
