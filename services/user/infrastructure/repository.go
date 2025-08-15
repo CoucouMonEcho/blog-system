@@ -6,7 +6,6 @@ import (
 	"errors"
 	"strings"
 
-	"blog-system/common/pkg/logger"
 	"blog-system/services/user/domain"
 
 	"github.com/CoucouMonEcho/go-framework/orm"
@@ -49,47 +48,12 @@ func (r *UserRepository) FindByID(ctx context.Context, id int64) (*domain.User, 
 
 // FindByUsername 根据用户名查找用户
 func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
-	//TODO 规范化：去除前后空格，并按 MySQL collation 进行精确匹配
-	uname := strings.TrimSpace(username)
-
-	// 添加详细的调试日志
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Database connection: %v", r.db != nil)
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Input username: %s", username)
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Trimmed username: %s", uname)
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Username type: %T, length: %d", uname, len(uname))
-
-	// 构建查询
-	selector := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(uname))
-	query, err := selector.Build()
+	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(strings.TrimSpace(username))).Get(ctx)
 	if err != nil {
-		logger.L().LogWithContext("user-service", "repository", "ERROR", "Build error: %v", err)
-		return nil, err
-	}
-
-	// test
-	get, err := orm.RawQuery[domain.User](r.db, "SELECT * FROM blog_user WHERE username = ? LIMIT ?", query.Args[0], 1).Get(ctx)
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "ID query test %v, %v", get, err)
-
-	// 详细的查询信息
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Built query: %s", query.SQL)
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Query args count: %d", len(query.Args))
-	for i, arg := range query.Args {
-		logger.L().LogWithContext("user-service", "repository", "DEBUG", "Arg[%d]: %v (type: %T)", i, arg, arg)
-	}
-
-	// 执行查询
-	user, err := selector.Get(ctx)
-	if err != nil {
-		logger.L().LogWithContext("user-service", "repository", "ERROR", "Query execution error: %v", err)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("用户不存在")
 		}
 		return nil, err
-	}
-
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Query successful, user found: %v", user != nil)
-	if user != nil {
-		logger.L().LogWithContext("user-service", "repository", "DEBUG", "User ID: %d, Username: %s", user.ID, user.Username)
 	}
 
 	return user, nil

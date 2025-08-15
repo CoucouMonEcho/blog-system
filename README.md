@@ -72,14 +72,40 @@ go run main.go
 
 ### 4. 生产环境部署
 
+#### 🎯 智能部署（推荐）
 ```bash
-# 使用 GitHub Actions 自动部署
+# 使用 GitHub Actions 智能部署
 # 推送代码到 main 分支即可触发部署
+# 系统自动检测变更，只部署有修改的服务
+```
 
-# 或手动部署
+#### 🔧 手动部署
+```bash
+# 完整部署所有服务
 chmod +x deploy/deploy.sh
 ./deploy/deploy.sh
+
+# 或单独部署某个服务
+chmod +x deploy/deploy-user-service.sh
+./deploy/deploy-user-service.sh
 ```
+
+### 5. 🚀 动态部署特性
+
+本项目实现了智能的动态部署系统：
+
+- **自动变更检测**: 使用 `dorny/paths-filter` 自动检测代码变更
+- **智能服务部署**: 只部署有变更的服务，大幅提升部署效率
+- **依赖关系管理**: 自动处理服务间依赖，确保部署顺序正确
+- **并行部署优化**: 支持多个服务并行部署，最大化资源利用
+
+**部署规则示例**:
+- 修改 `services/user/**` → 只部署 user-service
+- 修改 `common/**` → 部署 common + 所有依赖服务
+- 修改 `configs/user.yaml` → 只部署 user-service
+- 修改 `deploy/deploy-user-service.sh` → 记录变更但不自动部署
+
+详细说明请查看 [动态部署文档](docs/dynamic-deployment.md)
 
 ## 📋 服务说明
 
