@@ -53,17 +53,15 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 	uname := strings.TrimSpace(username)
 
 	// 添加详细的调试日志
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "sess is: %v", r.db)
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "show tables is: %v",
-		orm.RawQuery[domain.User](r.db, "show tables;").Exec(ctx))
-
-	all, err := orm.RawQuery[domain.User](r.db, "select * from blog_user;").GetMulti(ctx)
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "select all is: %v",
-		all)
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Database connection: %v", r.db != nil)
 
 	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Input username: %s", username)
 	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Trimmed username: %s", uname)
 	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Username type: %T, length: %d", uname, len(uname))
+
+	get, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Id").Eq(10000)).Get(ctx)
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "select test: %v",
+		get)
 
 	// 构建查询
 	selector := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(uname))

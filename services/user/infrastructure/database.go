@@ -6,7 +6,6 @@ import (
 
 	"github.com/CoucouMonEcho/go-framework/cache"
 	"github.com/CoucouMonEcho/go-framework/orm"
-	ormprom "github.com/CoucouMonEcho/go-framework/orm/middlewares/prometheus"
 	_ "github.com/go-sql-driver/mysql"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -30,10 +29,8 @@ func InitDB(cfg *AppConfig) (*orm.DB, error) {
 	//	ql,
 	//))
 
-	//TODO 使用保守的中间件配置
-	db, err := orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(
-		ormprom.NewMiddlewareBuilder("blog", "user", "orm", "user orm latency").Build(),
-	))
+	// 完全移除所有中间件，直接使用原始连接
+	db, err := orm.Open(cfg.Database.Driver, dsn)
 	if err != nil {
 		return nil, err
 	}
