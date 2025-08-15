@@ -54,14 +54,9 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 
 	// 添加详细的调试日志
 	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Database connection: %v", r.db != nil)
-
 	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Input username: %s", username)
 	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Trimmed username: %s", uname)
 	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Username type: %T, length: %d", uname, len(uname))
-
-	get, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Id").Eq(10000)).Get(ctx)
-	logger.L().LogWithContext("user-service", "repository", "DEBUG", "select test: %v",
-		get)
 
 	// 构建查询
 	selector := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(uname))
@@ -70,6 +65,10 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 		logger.L().LogWithContext("user-service", "repository", "ERROR", "Build error: %v", err)
 		return nil, err
 	}
+
+	// test
+	get, err := orm.RawQuery[domain.User](r.db, "SELECT * FROM blog_user WHERE username = ? LIMIT ?", query.Args...).Get(ctx)
+	logger.L().LogWithContext("user-service", "repository", "DEBUG", "ID query test %v, %v", get, err)
 
 	// 详细的查询信息
 	logger.L().LogWithContext("user-service", "repository", "DEBUG", "Built query: %s", query.SQL)

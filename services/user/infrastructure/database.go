@@ -12,7 +12,8 @@ import (
 
 // InitDB 初始化数据库连接
 func InitDB(cfg *AppConfig) (*orm.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local&interpolateParams=true",
+	//FIXME 简化 DSN，移除可能有问题的参数
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local",
 		cfg.Database.User,
 		cfg.Database.Password,
 		cfg.Database.Host,
