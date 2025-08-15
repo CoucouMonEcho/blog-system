@@ -67,7 +67,7 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 	}
 
 	// test
-	get, err := orm.RawQuery[domain.User](r.db, "SELECT * FROM blog_user WHERE username = ? LIMIT ?", query.Args...).Get(ctx)
+	get, err := orm.RawQuery[domain.User](r.db, "SELECT * FROM blog_user WHERE username = ? LIMIT ?", query.Args[0], 1).Get(ctx)
 	logger.L().LogWithContext("user-service", "repository", "DEBUG", "ID query test %v, %v", get, err)
 
 	// 详细的查询信息
