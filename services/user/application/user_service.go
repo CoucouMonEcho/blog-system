@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"strconv"
@@ -154,7 +155,7 @@ func (s *UserAppService) UpdateUserInfo(ctx context.Context, id int64, updates m
 		case "email":
 			user.Email = value.(string)
 		case "avatar":
-			user.Avatar = value.(string)
+			user.Avatar = value.(*sql.NullString)
 		}
 	}
 

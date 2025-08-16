@@ -2,23 +2,24 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
 // User 用户领域模型
 type User struct {
-	ID        int64     `json:"id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	Password  string    `json:"-"` // 不序列化密码
-	Role      string    `json:"role"`
-	Avatar    string    `json:"avatar"`
-	Status    int       `json:"status"` // 0:正常, 1:禁用
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int64           `json:"id"`
+	Username  string          `json:"username"`
+	Email     string          `json:"email"`
+	Password  string          `json:"-"` // 不序列化密码
+	Role      string          `json:"role"`
+	Avatar    *sql.NullString `json:"avatar"`
+	Status    int             `json:"status"` // 0:正常, 1:禁用
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
 }
 
-// TODO TableName 显式指定表名，避免命名策略差异导致的表名不匹配
+// TableName 显式指定表名，避免命名策略差异导致的表名不匹配
 func (User) TableName() string { return "blog_user" }
 
 // UserRepository 用户仓储接口

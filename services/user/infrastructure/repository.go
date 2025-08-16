@@ -71,7 +71,16 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 
 // Update 更新用户
 func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
-	return orm.NewUpdater[domain.User](r.db).Set(orm.C("Username"), user.Username).Set(orm.C("Email"), user.Email).Set(orm.C("Password"), user.Password).Set(orm.C("Role"), user.Role).Set(orm.C("Avatar"), user.Avatar).Set(orm.C("Status"), user.Status).Set(orm.C("UpdatedAt"), user.UpdatedAt).Where(orm.C("Id").Eq(user.ID)).Exec(ctx).Err()
+	return orm.NewUpdater[domain.User](r.db).
+		Set(orm.C("Username"), user.Username).
+		Set(orm.C("Email"), user.Email).
+		Set(orm.C("Password"), user.Password).
+		Set(orm.C("Role"), user.Role).
+		Set(orm.C("Avatar"), user.Avatar).
+		Set(orm.C("Status"), user.Status).
+		Set(orm.C("UpdatedAt"), user.UpdatedAt).
+		Where(orm.C("Id").Eq(user.ID)).
+		Exec(ctx).Err()
 }
 
 // Delete 删除用户
