@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	blog-system/common v0.0.0
-	github.com/CoucouMonEcho/go-framework v0.1.5
+	github.com/CoucouMonEcho/go-framework v0.1.6
 	github.com/go-sql-driver/mysql v1.9.3
 	go.etcd.io/etcd/client/v3 v3.6.2
 	google.golang.org/grpc v1.73.0

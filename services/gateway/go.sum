@@ -1,5 +1,4 @@
-github.com/CoucouMonEcho/go-framework v0.1.5 h1:WMm2B9BGoNhFs8u1yO2hc5M8rDpL9PEO4KzOemK+um8=
-github.com/CoucouMonEcho/go-framework v0.1.5/go.mod h1:kXevlaXqMjEl3KaTFOO390ueuWHHmi8P2Jd9aLx7yY4=
+github.com/CoucouMonEcho/go-framework v0.1.6 h1:Fc3Zk4sEIUU7q32UfTAWAxWyjSafmqvqx9KCaVn793I=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/ginkgo/v2 v2.12.0/go.mod h1:SwYbGRRDovPVboqFv0tPTcG1sN61LM1Z4ARdbAV9g4c=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=

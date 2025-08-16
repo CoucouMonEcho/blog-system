@@ -3,7 +3,7 @@ module blog-system/services/user
 go 1.24.2
 
 require (
-	github.com/CoucouMonEcho/go-framework v0.1.5
+	github.com/CoucouMonEcho/go-framework v0.1.6
 	golang.org/x/crypto v0.36.0
 )
 
