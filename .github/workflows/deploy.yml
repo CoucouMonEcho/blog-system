@@ -6,100 +6,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  # 检查代码变更
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      common: ${{ steps.filter.outputs.common }}
-      user: ${{ steps.filter.outputs.user }}
-      content: ${{ steps.filter.outputs.content }}
-      admin: ${{ steps.filter.outputs.admin }}
-      stat: ${{ steps.filter.outputs.stat }}
-      gateway: ${{ steps.filter.outputs.gateway }}
-      deploy-scripts: ${{ steps.filter.outputs.deploy-scripts }}
-      configs: ${{ steps.filter.outputs.configs }}
-      docs: ${{ steps.filter.outputs.docs }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # 获取完整历史用于比较
-      
-      - name: Check for changes
-        uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            common:
-              - 'common/**'
-              - 'go.work'
-              - 'go.mod'
-              - 'go.sum'
-            
-            user:
-              - 'services/user/**'
-              - 'common/**'
-              - 'configs/user.yaml'
-              - 'deploy/deploy-user-service.sh'
-              - 'go.work'
-              - 'go.mod'
-              - 'go.sum'
-            
-            content:
-              - 'services/content/**'
-              - 'common/**'
-              - 'configs/content.yaml'
-              - 'deploy/deploy-content-service.sh'
-              - 'go.work'
-              - 'go.mod'
-              - 'go.sum'
-            
-            admin:
-              - 'services/admin/**'
-              - 'common/**'
-              - 'configs/admin.yaml'
-              - 'deploy/deploy-admin-service.sh'
-              - 'go.work'
-              - 'go.mod'
-              - 'go.sum'
-            
-            stat:
-              - 'services/stat/**'
-              - 'common/**'
-              - 'configs/stat.yaml'
-              - 'deploy/deploy-stat-service.sh'
-              - 'go.work'
-              - 'go.mod'
-              - 'go.sum'
-            
-            gateway:
-              - 'services/gateway/**'
-              - 'common/**'
-              - 'configs/gateway.yaml'
-              - 'deploy/deploy-gateway-service.sh'
-              - 'go.work'
-              - 'go.mod'
-              - 'go.sum'
-            
-            deploy-scripts:
-              - 'deploy/**'
-              - '.github/workflows/**'
-            
-            configs:
-              - 'configs/**'
-            
-            docs:
-              - 'README.md'
-              - 'docs/**'
-              - '*.md'
-
   # 部署公共模块
   deploy-common:
     runs-on: ubuntu-latest
-    if: ${{ needs.changes.outputs.common == 'true' }}
     outputs:
       common-deployed: ${{ steps.deploy-common.outputs.success }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -174,11 +86,10 @@ jobs:
   # 部署用户服务
   deploy-user-service:
     runs-on: ubuntu-latest
-    if: ${{ needs.changes.outputs.user == 'true' }}
-    needs: [changes, deploy-common]
+    needs: deploy-common
     outputs:
       user-deployed: ${{ steps.deploy-user.outputs.success }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -266,8 +177,7 @@ jobs:
   # 部署内容服务（依赖 common，与 user 并行）
   deploy-content-service:
     runs-on: ubuntu-latest
-    if: ${{ needs.changes.outputs.content == 'true' }}
-    needs: [changes, deploy-common]
+    needs: deploy-common
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -330,8 +240,7 @@ jobs:
   # 部署管理服务（可与其他并行，作为健康检查/后台入口）
   deploy-admin-service:
     runs-on: ubuntu-latest
-    if: ${{ needs.changes.outputs.admin == 'true' }}
-    needs: [changes, deploy-user-service, deploy-content-service]
+    needs: [ deploy-user-service, deploy-content-service ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -394,8 +303,7 @@ jobs:
   # 部署统计服务（可并行，依赖 common）
   deploy-stat-service:
     runs-on: ubuntu-latest
-    if: ${{ needs.changes.outputs.stat == 'true' }}
-    needs: [changes, deploy-content-service]
+    needs: [ deploy-content-service ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -457,8 +365,7 @@ jobs:
   # 部署网关服务
   deploy-gateway-service:
     runs-on: ubuntu-latest
-    if: ${{ needs.changes.outputs.gateway == 'true' }}
-    needs: [changes, deploy-admin-service, deploy-stat-service]
+    needs: [ deploy-admin-service, deploy-stat-service ]
     outputs:
       gateway-deployed: ${{ steps.deploy-gateway.outputs.success }}
 
@@ -559,39 +466,4 @@ jobs:
               echo "Gateway service deployment failed"
               systemctl status gateway-service --no-pager -l
               exit 1
-            fi
-
-  # 部署完成通知
-  deployment-summary:
-    runs-on: ubuntu-latest
-    needs: [changes, deploy-common, deploy-user-service, deploy-content-service, deploy-admin-service, deploy-stat-service, deploy-gateway-service]
-    if: always()
-    steps:
-      - name: Deployment Summary
-        run: |
-          echo "## 🚀 部署完成摘要" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📊 变更检测结果" >> $GITHUB_STEP_SUMMARY
-          echo "- **Common**: ${{ needs.changes.outputs.common == 'true' && '✅ 已部署' || '⏭️ 无变更' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **User Service**: ${{ needs.changes.outputs.user == 'true' && '✅ 已部署' || '⏭️ 无变更' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Content Service**: ${{ needs.changes.outputs.content == 'true' && '✅ 已部署' || '⏭️ 无变更' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Admin Service**: ${{ needs.changes.outputs.admin == 'true' && '✅ 已部署' || '⏭️ 无变更' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Stat Service**: ${{ needs.changes.outputs.stat == 'true' && '✅ 已部署' || '⏭️ 无变更' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Gateway Service**: ${{ needs.changes.outputs.gateway == 'true' && '✅ 已部署' || '⏭️ 无变更' }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔧 其他变更" >> $GITHUB_STEP_SUMMARY
-          echo "- **部署脚本**: ${{ needs.changes.outputs.deploy-scripts == 'true' && '📝 已更新' || '⏭️ 无变更' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **配置文件**: ${{ needs.changes.outputs.configs == 'true' && '⚙️ 已更新' || '⏭️ 无变更' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **文档**: ${{ needs.changes.outputs.docs == 'true' && '📚 已更新' || '⏭️ 无变更' }}" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.changes.outputs.common }}" == "true" ] || [ "${{ needs.changes.outputs.user }}" == "true" ] || [ "${{ needs.changes.outputs.content }}" == "true" ] || [ "${{ needs.changes.outputs.admin }}" == "true" ] || [ "${{ needs.changes.outputs.stat }}" == "true" ] || [ "${{ needs.changes.outputs.gateway }}" == "true" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🎯 部署状态" >> $GITHUB_STEP_SUMMARY
-            echo "- **Common**: ${{ needs.deploy-common.outputs.common-deployed == 'true' && '✅ 成功' || '❌ 失败' }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **User Service**: ${{ needs.deploy-user-service.outputs.user-deployed == 'true' && '✅ 成功' || '❌ 失败' }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Gateway Service**: ${{ needs.deploy-gateway-service.outputs.gateway-deployed == 'true' && '✅ 成功' || '❌ 失败' }}" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🎯 部署状态" >> $GITHUB_STEP_SUMMARY
-            echo "**⏭️ 无服务需要部署**" >> $GITHUB_STEP_SUMMARY
-          fi 
+            fi 
