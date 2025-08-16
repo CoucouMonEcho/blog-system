@@ -87,7 +87,7 @@ func (s *UserAppService) Login(ctx context.Context, username, password string) (
 	}
 	user, err := s.userRepo.FindByUsername(ctx, uname)
 	if err != nil {
-		s.logger.LogWithContext("user-service", "application", "WARN", "登录失败: 用户不存在, username=%s", uname)
+		s.logger.LogWithContext("user-service", "application", "WARN", "登录失败: 用户不存在, username=%s, err=%v", uname, err)
 		return nil, errors.New("用户不存在")
 	}
 

@@ -2,8 +2,6 @@ package infrastructure
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"strings"
 
 	"blog-system/services/user/domain"
@@ -38,9 +36,9 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 func (r *UserRepository) FindByID(ctx context.Context, id int64) (*domain.User, error) {
 	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Id").Eq(id)).Get(ctx)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("用户不存在")
-		}
+		//if errors.Is(err, sql.ErrNoRows) {
+		//	return nil, errors.New("用户不存在")
+		//}
 		return nil, err
 	}
 	return user, nil
@@ -50,9 +48,9 @@ func (r *UserRepository) FindByID(ctx context.Context, id int64) (*domain.User, 
 func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Username").Eq(strings.TrimSpace(username))).Get(ctx)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("用户不存在")
-		}
+		//if errors.Is(err, sql.ErrNoRows) {
+		//	return nil, errors.New("用户不存在")
+		//}
 		return nil, err
 	}
 
@@ -63,9 +61,9 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Email").Eq(email)).Get(ctx)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("用户不存在")
-		}
+		//if errors.Is(err, sql.ErrNoRows) {
+		//	return nil, errors.New("用户不存在")
+		//}
 		return nil, err
 	}
 	return user, nil
@@ -89,7 +87,7 @@ func (r *UserRepository) List(ctx context.Context, page, pageSize int) ([]*domai
 		return nil, 0, err
 	}
 
-	// 获取总数 - 使用单独的查询
+	//TODO 获取总数 - 使用单独的查询
 	countSelector := orm.NewSelector[domain.User](r.db)
 	countUsers, err := countSelector.GetMulti(ctx)
 	if err != nil {
