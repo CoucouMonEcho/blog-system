@@ -1,7 +1,6 @@
 package infrastructure
 
 import (
-	"blog-system/common/pkg/logger"
 	"context"
 
 	"blog-system/services/content/domain"
@@ -53,11 +52,10 @@ func (r *ContentRepository) ListArticleSummaries(ctx context.Context, page, page
 		return nil, 0, err
 	}
 	summaries := make([]*domain.ArticleSummary, 0, len(rows))
-	//FIXME
-	logger.L().Debug("rows is %v", rows)
 	for _, a := range rows {
-		logger.L().Debug("summaries is %v", summaries)
-		logger.L().Debug("a is %v", a)
+		if a == nil {
+			continue
+		}
 		summaries = append(summaries, &domain.ArticleSummary{ID: a.ID, Title: a.Title})
 	}
 	all, err := orm.NewSelector[domain.Article](r.db).GetMulti(ctx)

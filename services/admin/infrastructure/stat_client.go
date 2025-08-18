@@ -51,6 +51,9 @@ func (c *StatServiceClient) PVSeries(ctx context.Context, from, to, interval str
 	}
 	out := make([]map[string]int64, 0, len(resp.Points))
 	for _, p := range resp.Points {
+		if p == nil {
+			continue
+		}
 		out = append(out, map[string]int64{"ts": p.Ts, "value": p.Value})
 	}
 	return out, nil
