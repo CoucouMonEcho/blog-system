@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"blog-system/common/pkg/logger"
 	"context"
 
 	"blog-system/services/content/domain"
@@ -35,6 +36,8 @@ func (r *ContentRepository) ListArticles(ctx context.Context, page, pageSize int
 		return nil, 0, err
 	}
 	all, err := orm.NewSelector[domain.Article](r.db).GetMulti(ctx)
+	//FIXME
+	logger.L().Debug("ListArticles all is %#v, len is %d", all, len(all))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -59,6 +62,8 @@ func (r *ContentRepository) ListArticleSummaries(ctx context.Context, page, page
 		summaries = append(summaries, &domain.ArticleSummary{ID: a.ID, Title: a.Title})
 	}
 	all, err := orm.NewSelector[domain.Article](r.db).GetMulti(ctx)
+	//FIXME
+	logger.L().Debug("ListArticleSummaries all is %#v, len is %d", all, len(all))
 	if err != nil {
 		return nil, 0, err
 	}
