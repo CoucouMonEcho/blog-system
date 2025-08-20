@@ -318,16 +318,15 @@ func (s *HTTPServer) listCategories(ctx *web.Context) {
 
 func (s *HTTPServer) createCategory(ctx *web.Context) {
 	var req struct {
-		Name     string `json:"name"`
-		Slug     string `json:"slug"`
-		ParentID int64  `json:"parent_id"`
-		Sort     int    `json:"sort"`
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+		Sort int    `json:"sort"`
 	}
 	if err := ctx.BindJSON(&req); err != nil || req.Name == "" {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, "参数错误"))
 		return
 	}
-	c := &domain.Category{Name: req.Name, Slug: req.Slug, ParentID: req.ParentID, Sort: req.Sort}
+	c := &domain.Category{Name: req.Name, Slug: req.Slug, Sort: req.Sort}
 	if err := s.app.CreateCategory(ctx.Req.Context(), c); err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
@@ -342,16 +341,15 @@ func (s *HTTPServer) updateCategory(ctx *web.Context) {
 		return
 	}
 	var req struct {
-		Name     string `json:"name,omitempty"`
-		Slug     string `json:"slug,omitempty"`
-		ParentID int64  `json:"parent_id,omitempty"`
-		Sort     int    `json:"sort,omitempty"`
+		Name string `json:"name,omitempty"`
+		Slug string `json:"slug,omitempty"`
+		Sort int    `json:"sort,omitempty"`
 	}
 	if err := ctx.BindJSON(&req); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
-	c := &domain.Category{ID: id, Name: req.Name, Slug: req.Slug, ParentID: req.ParentID, Sort: req.Sort}
+	c := &domain.Category{ID: id, Name: req.Name, Slug: req.Slug, Sort: req.Sort}
 	if err := s.app.UpdateCategory(ctx.Req.Context(), c); err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
@@ -372,45 +370,24 @@ func (s *HTTPServer) deleteCategory(ctx *web.Context) {
 	_ = ctx.RespJSONOK(dto.SuccessNil())
 }
 
-// categoryTree 构建树状分类（最多三级，按 Sort 升序）
+// categoryTree 构建分类（单层，按 Sort 升序）
 func (s *HTTPServer) categoryTree(ctx *web.Context) {
-	// 拉取足够多的数据用于构建树
+	// 拉取足够多的数据用于构建列表
 	list, _, err := s.app.ListCategories(ctx.Req.Context(), 1, 10000)
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
 	}
 	type Node struct {
-		ID       int64  `json:"id"`
-		Name     string `json:"name"`
-		Slug     string `json:"slug"`
-		ParentID int64  `json:"parent_id"`
-		Sort     int    `json:"sort"`
-		Children []Node `json:"children,omitempty"`
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+		Sort int    `json:"sort"`
 	}
-	// 索引
-	idToNode := make(map[int64]*Node)
+	// 单层分类：直接返回扁平列表
+	out := make([]Node, 0, len(list))
 	for _, c := range list {
-		idToNode[c.ID] = &Node{ID: c.ID, Name: c.Name, Slug: c.Slug, ParentID: c.ParentID, Sort: c.Sort}
-	}
-	// 依据原始顺序（已按 Sort 排序）组装树
-	roots := make([]*Node, 0)
-	for _, c := range list {
-		n := idToNode[c.ID]
-		if c.ParentID == 0 {
-			roots = append(roots, n)
-			continue
-		}
-		if p, ok := idToNode[c.ParentID]; ok {
-			p.Children = append(p.Children, *n)
-		} else {
-			roots = append(roots, n)
-		}
-	}
-	// 转换为值切片
-	out := make([]Node, 0, len(roots))
-	for _, r := range roots {
-		out = append(out, *r)
+		out = append(out, Node{ID: c.ID, Name: c.Name, Slug: c.Slug, Sort: c.Sort})
 	}
 	_ = ctx.RespJSONOK(dto.Success(out))
 }

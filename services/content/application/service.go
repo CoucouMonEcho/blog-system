@@ -92,20 +92,10 @@ func (s *ContentAppService) GetCategoryTree(ctx context.Context) ([]*domain.Cate
 	if err != nil {
 		return nil, err
 	}
-	id2node := make(map[int64]*domain.CategoryNode)
+	// 单层分类：直接返回扁平列表（保留 Node 结构，Children 为空）
 	var roots []*domain.CategoryNode
 	for _, c := range list {
-		id2node[c.ID] = &domain.CategoryNode{ID: c.ID, Name: c.Name, Slug: c.Slug}
-	}
-	for _, c := range list {
-		node := id2node[c.ID]
-		if c.ParentID == 0 {
-			roots = append(roots, node)
-		} else if p, ok := id2node[c.ParentID]; ok {
-			p.Children = append(p.Children, node)
-		} else {
-			roots = append(roots, node)
-		}
+		roots = append(roots, &domain.CategoryNode{ID: c.ID, Name: c.Name, Slug: c.Slug})
 	}
 	if s.cache != nil {
 		if b, err := json.Marshal(roots); err == nil {

@@ -109,7 +109,6 @@ func (r *CategoryRepository) Update(ctx context.Context, c *domain.Category) err
 	return orm.NewUpdater[domain.Category](r.db).
 		Set(orm.C("Name"), c.Name).
 		Set(orm.C("Slug"), c.Slug).
-		Set(orm.C("ParentID"), c.ParentID).
 		Set(orm.C("Sort"), c.Sort).
 		Where(orm.C("Id").Eq(c.ID)).
 		Exec(ctx).Err()

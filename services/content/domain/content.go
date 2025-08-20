@@ -6,22 +6,21 @@ import (
 )
 
 type Article struct {
-	ID           int64      `json:"id"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Content      string     `json:"content"`
-	Summary      string     `json:"summary"`
-	AuthorID     int64      `json:"author_id"`
-	CategoryID   int64      `json:"category_id"`
-	Status       int        `json:"status"`
-	ViewCount    int64      `json:"view_count"`
-	LikeCount    int64      `json:"like_count"`
-	CommentCount int64      `json:"comment_count"`
-	IsTop        bool       `json:"is_top"`
-	IsRecommend  bool       `json:"is_recommend"`
-	PublishedAt  *time.Time `json:"published_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID          int64      `json:"id"`
+	Title       string     `json:"title"`
+	Slug        string     `json:"slug"`
+	Content     string     `json:"content"`
+	Summary     string     `json:"summary"`
+	AuthorID    int64      `json:"author_id"`
+	CategoryID  int64      `json:"category_id"`
+	Status      int        `json:"status"`
+	ViewCount   int64      `json:"view_count"`
+	LikeCount   int64      `json:"like_count"`
+	IsTop       bool       `json:"is_top"`
+	IsRecommend bool       `json:"is_recommend"`
+	PublishedAt *time.Time `json:"published_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // TableName 显式指定表名，避免命名策略差异
@@ -38,7 +37,6 @@ type Category struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
 	Slug      string    `json:"slug"`
-	ParentID  int64     `json:"parent_id"`
 	Sort      int       `json:"sort"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
