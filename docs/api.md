@@ -110,10 +110,10 @@ Content-Type: application/json   # 仅对 POST 场景，一般 GET 无需
 - 关键词搜索：`GET /api/content/article/search?q=&page=&page_size=`
   - 响应体：同上，`list` 为匹配到的摘要列表
 
-- 分类树（三级）：`GET /api/content/category/tree`
+- 分类列表（单层）：`GET /api/content/category/tree`
   - 响应体：
   ```json
-  { "code": 0, "message": "success", "data": [{"id":1,"name":"A","children":[{"id":2,"name":"B","children":[]}]}] }
+  { "code": 0, "message": "success", "data": [{"id":1,"name":"A","slug":"a","sort":10}] }
   ```
 
 ## 管理（admin）
@@ -160,7 +160,7 @@ Content-Type: application/json   # 仅对 POST 场景，一般 GET 无需
   - 分页：`GET /api/admin/categories?page=&page_size=`
   - 新增：`POST /api/admin/categories`
     - 请求头：`Content-Type: application/json`
-    - 请求体（示例）：`{"name":"后端","slug":"backend","parent_id":0,"sort":10}`
+    - 请求体（示例）：`{"name":"后端","slug":"backend","sort":10}`
   - 修改：`POST /api/admin/categories/update/:id`
     - 请求体（示例）：`{"name":"服务端","sort":20}`
   - 删除：`POST /api/admin/categories/delete/:id`
@@ -214,7 +214,7 @@ Content-Type: application/json   # 仅对 POST 场景，一般 GET 无需
 3. 文章详情：GET /api/article/1 -> 返回 article
 4. 文章摘要列表：GET /api/article/list?page=1&page_size=10 -> 返回 list,total
 5. 关键词搜索：GET /api/article/search?q=go&page=1&page_size=10 -> 返回 list,total
-6. 分类树：GET /api/category/tree -> 返回三级分类树
+6. 分类列表：GET /api/category/tree -> 返回单层分类
 7. 管理端新增文章：POST /api/admin/articles -> success
 8. 管理端更新文章：POST /api/admin/articles/update/1 -> success
 9. 管理端删除文章：POST /api/admin/articles/delete/1 -> success

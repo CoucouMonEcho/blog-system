@@ -12,23 +12,41 @@ import (
 )
 
 type AdminService struct {
-	Users      domain.UserRepository
-	Articles   domain.ArticleRepository
-	Categories domain.CategoryRepository
-	Logger     logger.Logger
-	Cache      cache.Cache
-	Auth       UserAuthClient
-	Stat       StatClient
-	Prom       PromClient
+	Users   UserClient
+	Content ContentClient
+	Logger  logger.Logger
+	Cache   cache.Cache
+	Stat    StatClient
+	Prom    PromClient
 }
 
-// UserAuthClient 抽象 user-service 的认证能力
-type UserAuthClient interface {
+// UserClient 抽象 user-service 能力（登录 + 管理）
+type UserClient interface {
 	Login(ctx context.Context, username, password string) (token string, role string, err error)
+	Create(ctx context.Context, u *domain.User) error
+	Update(ctx context.Context, u *domain.User) error
+	Delete(ctx context.Context, id int64) error
+	List(ctx context.Context, page, pageSize int) ([]*domain.User, int64, error)
 }
 
-func NewAdminService(u domain.UserRepository, a domain.ArticleRepository, c domain.CategoryRepository, l logger.Logger, cache cache.Cache, auth UserAuthClient, stat StatClient, prom PromClient) *AdminService {
-	return &AdminService{Users: u, Articles: a, Categories: c, Logger: l, Cache: cache, Auth: auth, Stat: stat, Prom: prom}
+// ContentClient 抽象 content-service 能力（文章/分类管理）
+type ContentClient interface {
+	// 文章
+	CreateArticle(ctx context.Context, a *domain.Article) error
+	UpdateArticle(ctx context.Context, a *domain.Article) error
+	DeleteArticle(ctx context.Context, id int64) error
+	ListArticles(ctx context.Context, page, pageSize int) ([]*domain.Article, int64, error)
+	CountArticles(ctx context.Context) (int64, error)
+	// 分类
+	CreateCategory(ctx context.Context, c *domain.Category) error
+	UpdateCategory(ctx context.Context, c *domain.Category) error
+	DeleteCategory(ctx context.Context, id int64) error
+	ListCategories(ctx context.Context, page, pageSize int) ([]*domain.Category, int64, error)
+	CountCategories(ctx context.Context) (int64, error)
+}
+
+func NewAdminService(userCli UserClient, contentCli ContentClient, l logger.Logger, cache cache.Cache, stat StatClient, prom PromClient) *AdminService {
+	return &AdminService{Users: userCli, Content: contentCli, Logger: l, Cache: cache, Stat: stat, Prom: prom}
 }
 
 // 用户管理
@@ -56,24 +74,24 @@ func (s *AdminService) CreateArticle(ctx context.Context, a *domain.Article) err
 	}
 	a.CreatedAt = now
 	a.UpdatedAt = now
-	return s.Articles.Create(ctx, a)
+	return s.Content.CreateArticle(ctx, a)
 }
 func (s *AdminService) UpdateArticle(ctx context.Context, a *domain.Article) error {
 	a.UpdatedAt = time.Now()
-	return s.Articles.Update(ctx, a)
+	return s.Content.UpdateArticle(ctx, a)
 }
 func (s *AdminService) DeleteArticle(ctx context.Context, id int64) error {
-	return s.Articles.Delete(ctx, id)
+	return s.Content.DeleteArticle(ctx, id)
 }
 func (s *AdminService) ListArticles(ctx context.Context, page, pageSize int) ([]*domain.Article, int64, error) {
-	return s.Articles.List(ctx, page, pageSize)
+	return s.Content.ListArticles(ctx, page, pageSize)
 }
 
 // 分类管理
 func (s *AdminService) CreateCategory(ctx context.Context, c *domain.Category) error {
 	c.CreatedAt = time.Now()
 	c.UpdatedAt = c.CreatedAt
-	if err := s.Categories.Create(ctx, c); err != nil {
+	if err := s.Content.CreateCategory(ctx, c); err != nil {
 		return err
 	}
 	if s.Cache != nil {
@@ -83,7 +101,7 @@ func (s *AdminService) CreateCategory(ctx context.Context, c *domain.Category) e
 }
 func (s *AdminService) UpdateCategory(ctx context.Context, c *domain.Category) error {
 	c.UpdatedAt = time.Now()
-	if err := s.Categories.Update(ctx, c); err != nil {
+	if err := s.Content.UpdateCategory(ctx, c); err != nil {
 		return err
 	}
 	if s.Cache != nil {
@@ -92,7 +110,7 @@ func (s *AdminService) UpdateCategory(ctx context.Context, c *domain.Category) e
 	return nil
 }
 func (s *AdminService) DeleteCategory(ctx context.Context, id int64) error {
-	if err := s.Categories.Delete(ctx, id); err != nil {
+	if err := s.Content.DeleteCategory(ctx, id); err != nil {
 		return err
 	}
 	if s.Cache != nil {
@@ -101,15 +119,15 @@ func (s *AdminService) DeleteCategory(ctx context.Context, id int64) error {
 	return nil
 }
 func (s *AdminService) ListCategories(ctx context.Context, page, pageSize int) ([]*domain.Category, int64, error) {
-	return s.Categories.List(ctx, page, pageSize)
+	return s.Content.ListCategories(ctx, page, pageSize)
 }
 
 // AdminLogin 调用 user-service 登录并校验管理员角色
 func (s *AdminService) AdminLogin(ctx context.Context, username, password string) (string, error) {
-	if s.Auth == nil {
-		return "", errors.New("认证客户端未初始化")
+	if s.Users == nil {
+		return "", errors.New("用户客户端未初始化")
 	}
-	token, role, err := s.Auth.Login(ctx, username, password)
+	token, role, err := s.Users.Login(ctx, username, password)
 	if err != nil {
 		return "", err
 	}
@@ -128,11 +146,11 @@ func (s *AdminService) Dashboard(ctx context.Context) (map[string]int64, error) 
 	if err != nil {
 		return nil, err
 	}
-	artTotal, err := s.Articles.Count(ctx)
+	artTotal, err := s.Content.CountArticles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	catTotal, err := s.Categories.Count(ctx)
+	catTotal, err := s.Content.CountCategories(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -69,15 +69,8 @@ func (s *UserAppService) Register(ctx context.Context, username, email, password
 		return nil, err
 	}
 
-	//TODO 兼容 ORM 不回填主键或插入异常无错误的情况：插入后回查确保持久化
-	persisted, err := s.userRepo.FindByUsername(ctx, username)
-	if err != nil {
-		s.logger.LogWithContext("user-service", "application", "ERROR", "注册后回查失败，可能未成功持久化: username=%s err=%v", username, err)
-		return nil, errors.New("用户创建后未成功持久化")
-	}
-
-	s.logger.LogWithContext("user-service", "application", "INFO", "注册成功: id=%d username=%s", persisted.ID, persisted.Username)
-	return persisted, nil
+	s.logger.LogWithContext("user-service", "application", "INFO", "注册成功: username=%s", user.Username)
+	return user, nil
 }
 
 // Login 用户登录
@@ -140,7 +133,7 @@ func (s *UserAppService) GetUserInfo(ctx context.Context, id int64) (*domain.Use
 }
 
 // UpdateUserInfo 更新用户信息
-func (s *UserAppService) UpdateUserInfo(ctx context.Context, id int64, updates map[string]interface{}) error {
+func (s *UserAppService) UpdateUserInfo(ctx context.Context, id int64, updates map[string]any) error {
 	user, err := s.userRepo.FindByID(ctx, id)
 	if err != nil {
 		s.logger.LogWithContext("user-service", "application", "ERROR", "更新失败: 读取用户错误 id=%d err=%v", id, err)
@@ -151,11 +144,21 @@ func (s *UserAppService) UpdateUserInfo(ctx context.Context, id int64, updates m
 	for key, value := range updates {
 		switch key {
 		case "username":
-			user.Username = value.(string)
+			if v, ok := value.(string); ok {
+				user.Username = v
+			}
 		case "email":
-			user.Email = value.(string)
+			if v, ok := value.(string); ok {
+				user.Email = v
+			}
 		case "avatar":
-			user.Avatar = value.(*sql.NullString)
+			if v, ok := value.(string); ok {
+				user.Avatar = &sql.NullString{String: v, Valid: v != ""}
+			}
+		case "role":
+			if v, ok := value.(string); ok {
+				user.Role = v
+			}
 		}
 	}
 
@@ -215,4 +218,14 @@ func (s *UserAppService) ResetPassword(ctx context.Context, email string) error 
 	_ = user // 暂时忽略，后续实现邮件发送功能
 
 	return nil
+}
+
+// ListUsers 分页列表
+func (s *UserAppService) ListUsers(ctx context.Context, page, pageSize int) ([]*domain.User, int64, error) {
+	return s.userRepo.List(ctx, page, pageSize)
+}
+
+// ChangeUserStatus 更新用户状态
+func (s *UserAppService) ChangeUserStatus(ctx context.Context, id int64, status int) error {
+	return s.userRepo.UpdateStatus(ctx, id, status)
 }

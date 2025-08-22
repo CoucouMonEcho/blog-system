@@ -6,9 +6,10 @@ import (
 	"strconv"
 
 	"blog-system/common/pkg/logger"
-	"blog-system/services/admin/api"
 	"blog-system/services/admin/application"
 	"blog-system/services/admin/infrastructure"
+	"blog-system/services/admin/infrastructure/clients"
+	httpapi "blog-system/services/admin/interfaces/httpserver"
 )
 
 func main() {
@@ -32,26 +33,14 @@ func main() {
 
 	// 初始化全局 Logger
 	logger.Init(lgr)
-	db, err := infrastructure.InitDB(cfg)
-	if err != nil {
-		log.Printf("数据库连接失败: %v", err)
-		lgr.LogWithContext("admin-service", "database", "FATAL", "数据库连接失败: %v", err)
-		return
-	}
-	// 初始化缓存（可选失败）
-	cache, cerr := infrastructure.InitCache(cfg)
-	if cerr != nil {
-		lgr.LogWithContext("admin-service", "cache", "ERROR", "缓存连接失败: %v", cerr)
-	}
-	userRepo := infrastructure.NewUserRepository(db)
-	artRepo := infrastructure.NewArticleRepository(db)
-	catRepo := infrastructure.NewCategoryRepository(db)
-	userCli := infrastructure.NewUserServiceClient(cfg)
+
+	userCli := clients.NewUserServiceClient(cfg)
+	contentCli := clients.NewContentClient(cfg)
 	statCli := infrastructure.NewStatServiceClient(cfg)
 	promCli := infrastructure.NewPrometheusClient("", 0)
-	app := application.NewAdminService(userRepo, artRepo, catRepo, lgr, cache, userCli, statCli, promCli)
+	app := application.NewAdminService(userCli, contentCli, lgr, nil, statCli, promCli)
 
-	http := api.NewHTTPServer()
+	http := httpapi.NewHTTPServer()
 	http.SetApp(app)
 	// 注册服务发现（失败不阻断启动）
 	if err := infrastructure.RegisterService(cfg); err != nil {

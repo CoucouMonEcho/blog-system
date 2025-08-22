@@ -56,9 +56,17 @@ type ContentRepository interface {
 	CreateArticle(ctx context.Context, a *Article) error
 	GetArticleByID(ctx context.Context, id int64) (*Article, error)
 	ListArticles(ctx context.Context, page, pageSize int) ([]*Article, int64, error)
+	CountArticles(ctx context.Context) (int64, error)
 	UpdateArticle(ctx context.Context, a *Article) error
 	DeleteArticle(ctx context.Context, id int64) error
 	ListArticleSummaries(ctx context.Context, page, pageSize int) ([]*ArticleSummary, int64, error)
 	SearchArticleSummaries(ctx context.Context, keyword string, page, pageSize int) ([]*ArticleSummary, int64, error)
+
+	// Category
 	ListAllCategories(ctx context.Context) ([]*Category, error)
+	ListCategories(ctx context.Context, page, pageSize int) ([]*Category, int64, error)
+	CountCategories(ctx context.Context) (int64, error)
+	CreateCategory(ctx context.Context, c *Category) error
+	UpdateCategory(ctx context.Context, c *Category) error
+	DeleteCategory(ctx context.Context, id int64) error
 }

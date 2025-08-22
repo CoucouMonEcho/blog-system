@@ -1,7 +1,6 @@
 package infrastructure
 
 import (
-	"blog-system/common/pkg/logger"
 	"context"
 
 	"blog-system/services/content/domain"
@@ -35,13 +34,11 @@ func (r *ContentRepository) ListArticles(ctx context.Context, page, pageSize int
 	if err != nil {
 		return nil, 0, err
 	}
-	all, err := orm.NewSelector[domain.Article](r.db).GetMulti(ctx)
-	//FIXME
-	logger.L().Debug("ListArticles all is %#v, len is %d", all, len(all))
+	cnt, err := orm.NewSelector[domain.Article](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	return list, int64(len(all)), nil
+	return list, cnt.ID, nil
 }
 
 // ListArticleSummaries 仅返回 ID 与 Title
@@ -61,13 +58,11 @@ func (r *ContentRepository) ListArticleSummaries(ctx context.Context, page, page
 		}
 		summaries = append(summaries, &domain.ArticleSummary{ID: a.ID, Title: a.Title})
 	}
-	all, err := orm.NewSelector[domain.Article](r.db).GetMulti(ctx)
-	//FIXME
-	logger.L().Debug("ListArticleSummaries all is %#v, len is %d", all, len(all))
+	cnt, err := orm.NewSelector[domain.Article](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	return summaries, int64(len(all)), nil
+	return summaries, cnt.ID, nil
 }
 
 // SearchArticleSummaries 模糊搜索标题或摘要
@@ -109,25 +104,51 @@ func (r *ContentRepository) ListAllCategories(ctx context.Context) ([]*domain.Ca
 	return list, nil
 }
 
-// containsFold 简单不区分大小写包含
-func containsFold(s, sub string) bool {
-	if sub == "" {
-		return true
+// ListCategories 分页
+func (r *ContentRepository) ListCategories(ctx context.Context, page, pageSize int) ([]*domain.Category, int64, error) {
+	offset := (page - 1) * pageSize
+	list, err := orm.NewSelector[domain.Category](r.db).OrderBy(orm.Asc("Sort")).Limit(pageSize).Offset(offset).GetMulti(ctx)
+	if err != nil {
+		return nil, 0, err
 	}
-	return stringContainsFold(s, sub)
+	cnt, err := orm.NewSelector[domain.Category](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, cnt.ID, nil
 }
 
-func stringContainsFold(s, sub string) bool {
-	return len(s) >= len(sub) && (len(sub) == 0 || (indexFold(s, sub) >= 0))
+// CountCategories 数量
+func (r *ContentRepository) CountCategories(ctx context.Context) (int64, error) {
+	cnt, err := orm.NewSelector[domain.Category](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return cnt.ID, nil
 }
 
-func indexFold(s, sub string) int {
-	// 简化处理：统一转小写
-	return index(strings.ToLower(s), strings.ToLower(sub))
+// CreateCategory 新增
+func (r *ContentRepository) CreateCategory(ctx context.Context, c *domain.Category) error {
+	return orm.NewInserter[domain.Category](r.db).Values(c).Exec(ctx).Err()
 }
 
-func index(s, sub string) int { return strings.Index(s, sub) }
+// UpdateCategory 更新
+func (r *ContentRepository) UpdateCategory(ctx context.Context, c *domain.Category) error {
+	return orm.NewUpdater[domain.Category](r.db).
+		Set(orm.C("Name"), c.Name).
+		Set(orm.C("Slug"), c.Slug).
+		Set(orm.C("Sort"), c.Sort).
+		Set(orm.C("UpdatedAt"), c.UpdatedAt).
+		Where(orm.C("Id").Eq(c.ID)).
+		Exec(ctx).Err()
+}
 
+// DeleteCategory 删除
+func (r *ContentRepository) DeleteCategory(ctx context.Context, id int64) error {
+	return orm.NewDeleter[domain.Category](r.db).Where(orm.C("Id").Eq(id)).Exec(ctx).Err()
+}
+
+// UpdateArticle 更新文章
 func (r *ContentRepository) UpdateArticle(ctx context.Context, a *domain.Article) error {
 	return orm.NewUpdater[domain.Article](r.db).
 		Set(orm.C("Title"), a.Title).
@@ -151,3 +172,31 @@ func (r *ContentRepository) DeleteArticle(ctx context.Context, id int64) error {
 		Where(orm.C("Id").Eq(id)).
 		Exec(ctx).Err()
 }
+
+// CountArticles 数量
+func (r *ContentRepository) CountArticles(ctx context.Context) (int64, error) {
+	cnt, err := orm.NewSelector[domain.Article](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return cnt.ID, nil
+}
+
+// containsFold 简单不区分大小写包含
+func containsFold(s, sub string) bool {
+	if sub == "" {
+		return true
+	}
+	return stringContainsFold(s, sub)
+}
+
+func stringContainsFold(s, sub string) bool {
+	return len(s) >= len(sub) && (len(sub) == 0 || (indexFold(s, sub) >= 0))
+}
+
+func indexFold(s, sub string) int {
+	// 简化处理：统一转小写
+	return index(strings.ToLower(s), strings.ToLower(sub))
+}
+
+func index(s, sub string) int { return strings.Index(s, sub) }

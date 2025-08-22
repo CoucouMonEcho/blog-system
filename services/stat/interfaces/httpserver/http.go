@@ -1,10 +1,11 @@
-package api
+package httpserver
 
 import (
 	"blog-system/common/pkg/dto"
 	"blog-system/common/pkg/errcode"
 	"blog-system/common/pkg/logger"
-	"blog-system/services/stat/infrastructure"
+	infra "blog-system/services/stat/infrastructure"
+	persistence "blog-system/services/stat/infrastructure/persistence"
 	"net/http"
 	"runtime/debug"
 	"strconv"
@@ -17,8 +18,8 @@ import (
 
 type HTTPServer struct {
 	server *web.HTTPServer
-	repo   *infrastructure.StatRepository
-	agg    *infrastructure.PVAggregator
+	repo   *persistence.StatRepository
+	agg    *infra.PVAggregator
 }
 
 func NewHTTPServer() *HTTPServer {
@@ -60,7 +61,7 @@ func NewHTTPServer() *HTTPServer {
 			webprom.MiddlewareBuilder{Namespace: "blog", Subsystem: "stat", Name: "http", Help: "stat http latency"}.Build(),
 		),
 	)
-	s := &HTTPServer{server: server, agg: infrastructure.NewPVAggregator()}
+	s := &HTTPServer{server: server, agg: infra.NewPVAggregator()}
 	s.server.Get("/health", func(ctx *web.Context) {
 		_ = ctx.RespJSONOK(dto.Success(map[string]any{"status": "ok", "service": "stat"}))
 	})
@@ -76,7 +77,7 @@ func NewHTTPServer() *HTTPServer {
 func (s *HTTPServer) Run(addr string) error { return s.server.Start(addr) }
 
 // SetRepository 注入仓储
-func (s *HTTPServer) SetRepository(repo *infrastructure.StatRepository) { s.repo = repo }
+func (s *HTTPServer) SetRepository(repo *persistence.StatRepository) { s.repo = repo }
 
 // Incr 统计自增: query: type,target_id,target_type[,user_id]
 func (s *HTTPServer) Incr(ctx *web.Context) {

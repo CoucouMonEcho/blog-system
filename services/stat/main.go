@@ -6,9 +6,12 @@ import (
 	"strconv"
 
 	"blog-system/common/pkg/logger"
-	"blog-system/services/stat/api"
 	"blog-system/services/stat/infrastructure"
+	persistence "blog-system/services/stat/infrastructure/persistence"
+	grpcapi "blog-system/services/stat/interfaces/grpcserver"
+	httpapi "blog-system/services/stat/interfaces/httpserver"
 	pb "blog-system/services/stat/proto"
+
 	micro "github.com/CoucouMonEcho/go-framework/micro"
 	regEtcd "github.com/CoucouMonEcho/go-framework/micro/registry/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -37,8 +40,8 @@ func main() {
 	if err != nil {
 		lgr.LogWithContext("stat-service", "database", "ERROR", "数据库连接失败: %v", err)
 	}
-	repo := infrastructure.NewStatRepository(db)
-	http := api.NewHTTPServer()
+	repo := persistence.NewStatRepository(db)
+	http := httpapi.NewHTTPServer()
 	// 注入 repo
 	http.SetRepository(repo)
 	// 启动 gRPC 服务（go-framework/micro）
@@ -55,7 +58,7 @@ func main() {
 		}
 	}
 	// 注册 gRPC handlers
-	pbSrv := api.NewGRPCServer(agg)
+	pbSrv := grpcapi.NewGRPCServer(agg)
 	pb.RegisterStatServiceServer(grpcSrv, pbSrv)
 	addr := ":" + strconv.Itoa(cfg.App.Port)
 	go func() { _ = grpcSrv.Start(":9004") }()

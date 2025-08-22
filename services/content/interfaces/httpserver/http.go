@@ -1,4 +1,4 @@
-package api
+package httpserver
 
 import (
 	"blog-system/common/pkg/dto"

@@ -1,4 +1,4 @@
-package api
+package httpserver
 
 import (
 	"blog-system/common/pkg/dto"
@@ -31,7 +31,6 @@ func NewHTTPServer(userService *application.UserAppService) *HTTPServer {
 			next(ctx)
 		}
 	}
-
 	// 恢复中间件
 	customRecover := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
@@ -103,8 +102,6 @@ func (s *HTTPServer) HealthCheck(ctx *web.Context) {
 		"timestamp": time.Now().Unix(),
 	}))
 }
-
-// Register 接口已下线，注册由 admin 后台负责
 
 // Login 用户登录
 func (s *HTTPServer) Login(ctx *web.Context) {

@@ -104,3 +104,24 @@ func (s *ContentAppService) GetCategoryTree(ctx context.Context) ([]*domain.Cate
 	}
 	return roots, nil
 }
+
+// ====== 分类与文章管理供 gRPC 调用 ======
+func (s *ContentAppService) ListCategories(ctx context.Context, page, pageSize int) ([]*domain.Category, int64, error) {
+	return s.repo.ListCategories(ctx, page, pageSize)
+}
+
+func (s *ContentAppService) UpdateCategory(ctx context.Context, c *domain.Category) error {
+	c.UpdatedAt = time.Now()
+	return s.repo.UpdateCategory(ctx, c)
+}
+
+func (s *ContentAppService) DeleteCategory(ctx context.Context, id int64) error {
+	return s.repo.DeleteCategory(ctx, id)
+}
+
+func (s *ContentAppService) CreateCategory(ctx context.Context, c *domain.Category) error {
+	now := time.Now()
+	c.CreatedAt = now
+	c.UpdatedAt = now
+	return s.repo.CreateCategory(ctx, c)
+}

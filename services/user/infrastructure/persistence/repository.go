@@ -36,9 +36,6 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 func (r *UserRepository) FindByID(ctx context.Context, id int64) (*domain.User, error) {
 	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Id").Eq(id)).Get(ctx)
 	if err != nil {
-		//if errors.Is(err, sql.ErrNoRows) {
-		//	return nil, errors.New("用户不存在")
-		//}
 		return nil, err
 	}
 	return user, nil
@@ -96,15 +93,12 @@ func (r *UserRepository) List(ctx context.Context, page, pageSize int) ([]*domai
 		return nil, 0, err
 	}
 
-	//TODO 获取总数 - 使用单独的查询
-	countSelector := orm.NewSelector[domain.User](r.db)
-	countUsers, err := countSelector.GetMulti(ctx)
+	total, err := orm.NewSelector[int64](r.db).From(orm.TableOf(&domain.User{})).Select(orm.Count("1")).Get(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	total := int64(len(countUsers))
 
-	return users, total, nil
+	return users, *total, nil
 }
 
 // UpdateStatus 更新用户状态
