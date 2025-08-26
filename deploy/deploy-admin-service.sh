@@ -80,30 +80,38 @@ deploy_admin_service() {
   silent_exec sed -i "s|logs/.*\\.log|${DEPLOY_PATH}/logs/${SERVICE_NAME}.log|g" ${DEPLOY_PATH}/configs/admin.yaml
   log_info "日志路径已更新为: ${DEPLOY_PATH}/logs/${SERVICE_NAME}.log"
   cd ${DEPLOY_PATH}/services/admin
-  export GOOS=linux GOARCH=amd64 CGO_ENABLED=0
-  # 统一模块与编译缓存目录
-  export GOMODCACHE=${GOMODCACHE:-/opt/blog-system/gomodcache}
-  export GOCACHE=${GOCACHE:-/opt/blog-system/gocache}
-  mkdir -p "$GOMODCACHE" "$GOCACHE"
-  # 依赖整理与按需下载
-  MOD_BEFORE=$(sha256sum go.mod 2>/dev/null | awk '{print $1}')
-  SUM_BEFORE=$(sha256sum go.sum 2>/dev/null | awk '{print $1}')
-  silent_exec go mod tidy
-  MOD_AFTER=$(sha256sum go.mod 2>/dev/null | awk '{print $1}')
-  SUM_AFTER=$(sha256sum go.sum 2>/dev/null | awk '{print $1}')
-  DOWNLOADED=0
-  if [ "${MOD_BEFORE}" != "${MOD_AFTER}" ] || [ "${SUM_BEFORE}" != "${SUM_AFTER}" ]; then
-    log_info "检测到依赖变更，下载依赖..."
-    silent_exec go mod download
-    DOWNLOADED=1
+  # 将 CI 预构建的二进制移动到工作目录
+  if [ -f "${DEPLOY_PATH}/${SERVICE_NAME}" ]; then
+    mv -f "${DEPLOY_PATH}/${SERVICE_NAME}" "${DEPLOY_PATH}/services/admin/${SERVICE_NAME}"
   fi
-  # 构建，失败则补充下载后重试
-  if ! silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} .; then
-    if [ "$DOWNLOADED" -eq 0 ]; then
-      log_info "构建失败，下载依赖后重试..."
+  # 若已上传二进制，则直接使用；否则回退为远端构建
+  if [ ! -f "${SERVICE_NAME}" ]; then
+    log_info "未检测到二进制，回退为远端构建"
+    export GOOS=linux GOARCH=amd64 CGO_ENABLED=0
+    # 统一模块与编译缓存目录
+    export GOMODCACHE=${GOMODCACHE:-/opt/blog-system/gomodcache}
+    export GOCACHE=${GOCACHE:-/opt/blog-system/gocache}
+    mkdir -p "$GOMODCACHE" "$GOCACHE"
+    # 依赖整理与按需下载
+    MOD_BEFORE=$(sha256sum go.mod 2>/dev/null | awk '{print $1}')
+    SUM_BEFORE=$(sha256sum go.sum 2>/dev/null | awk '{print $1}')
+    silent_exec go mod tidy
+    MOD_AFTER=$(sha256sum go.mod 2>/dev/null | awk '{print $1}')
+    SUM_AFTER=$(sha256sum go.sum 2>/dev/null | awk '{print $1}')
+    DOWNLOADED=0
+    if [ "${MOD_BEFORE}" != "${MOD_AFTER}" ] || [ "${SUM_BEFORE}" != "${SUM_AFTER}" ]; then
+      log_info "检测到依赖变更，下载依赖..."
       silent_exec go mod download
+      DOWNLOADED=1
     fi
-    go build -ldflags="-s -w" -o ${SERVICE_NAME} .
+    # 构建，失败则补充下载后重试
+    if ! silent_exec go build -ldflags="-s -w" -o ${SERVICE_NAME} .; then
+      if [ "$DOWNLOADED" -eq 0 ]; then
+        log_info "构建失败，下载依赖后重试..."
+        silent_exec go mod download
+      fi
+      go build -ldflags="-s -w" -o ${SERVICE_NAME} .
+    fi
   fi
   [ -f "${SERVICE_NAME}" ] || { log_error "构建失败"; exit 1; }
   cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF

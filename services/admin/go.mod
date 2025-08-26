@@ -4,7 +4,9 @@ go 1.24.2
 
 require (
 	blog-system/common v0.0.0
+	blog-system/services/content v0.0.0
 	blog-system/services/stat v0.0.0
+	blog-system/services/user v0.0.0
 	github.com/CoucouMonEcho/go-framework v0.1.7
 	go.etcd.io/etcd/client/v3 v3.6.2
 	google.golang.org/grpc v1.73.0
@@ -51,3 +53,7 @@ require (
 replace blog-system/common => ../../common
 
 replace blog-system/services/stat => ../stat
+
+replace blog-system/services/content => ../content
+
+replace blog-system/services/user => ../user

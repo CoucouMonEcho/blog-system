@@ -282,7 +282,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "services/admin,admin-service,configs/*.yaml,deploy/deploy-admin-service.sh"
+          source: "services/admin,services/content,services/user,services/stat,admin-service,configs/*.yaml,deploy/deploy-admin-service.sh"
           target: /opt/blog-system
           overwrite: true
       - name: Execute admin service deployment
