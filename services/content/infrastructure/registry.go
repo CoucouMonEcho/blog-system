@@ -6,12 +6,14 @@ import (
 	"net"
 	"time"
 
+	conf "blog-system/common/pkg/config"
+
 	"github.com/CoucouMonEcho/go-framework/micro/registry"
 	regEtcd "github.com/CoucouMonEcho/go-framework/micro/registry/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func RegisterService(cfg *AppConfig) error {
+func RegisterService(cfg *conf.AppConfig) error {
 	if len(cfg.Registry.Endpoints) == 0 {
 		return nil
 	}

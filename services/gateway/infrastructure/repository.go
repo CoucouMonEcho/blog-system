@@ -4,11 +4,11 @@ import (
 	"context"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
+	conf "blog-system/common/pkg/config"
 	"blog-system/services/gateway/domain"
 
 	"github.com/CoucouMonEcho/go-framework/cache"
@@ -26,7 +26,7 @@ type RouteRepository struct {
 }
 
 // NewRouteRepository 创建路由仓储
-func NewRouteRepository(cfg *GatewayConfig) *RouteRepository {
+func NewRouteRepository(cfg *conf.AppConfig) *RouteRepository {
 	// 转换配置到domain层结构
 	routes := domain.RouteConfig{
 		User: domain.Route{
@@ -89,16 +89,8 @@ type ServiceDiscovery struct {
 
 // NewServiceDiscovery 创建服务发现
 func NewServiceDiscovery() *ServiceDiscovery {
-	// 读取gateway配置以获取etcd
-	cfgPath := "/opt/blog-system/configs/gateway.yaml"
-	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
-		if _, err2 := os.Stat("../../configs/gateway.yaml"); err2 == nil {
-			cfgPath = "../../configs/gateway.yaml"
-		} else {
-			cfgPath = "configs/gateway.yaml"
-		}
-	}
-	gcfg, _ := LoadConfig(cfgPath)
+	// 读取统一配置
+	gcfg, _ := conf.LoadByPath(conf.ResolvePath("gateway"))
 
 	var endpoints []string
 	if len(gcfg.Registry.Endpoints) > 0 {
@@ -186,11 +178,11 @@ func (s *ServiceDiscovery) GetServiceLatency(target string) time.Duration {
 // RateLimiter 使用go-framework的限流器
 type RateLimiter struct {
 	limiter *rate_limit.RedisSlideWindowLimiter
-	config  RateLimitConfig
+	config  conf.RateLimitConfig
 }
 
 // NewRateLimiter 创建限流器 - 强制使用go-framework
-func NewRateLimiter(_ cache.Cache, config RateLimitConfig) *RateLimiter {
+func NewRateLimiter(_ cache.Cache, config conf.RateLimitConfig) *RateLimiter {
 	// 创建一个Redis客户端用于限流器
 	redisClient := redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs: []string{"127.0.0.1:7001", "127.0.0.1:7002", "127.0.0.1:7003"},
@@ -226,11 +218,11 @@ type CircuitBreaker struct {
 	failures    map[string]int
 	lastFailure map[string]time.Time
 	mu          sync.RWMutex
-	config      CircuitBreakerConfig
+	config      conf.CircuitBreakerConfig
 }
 
 // NewCircuitBreaker 创建熔断器
-func NewCircuitBreaker(config CircuitBreakerConfig) *CircuitBreaker {
+func NewCircuitBreaker(config conf.CircuitBreakerConfig) *CircuitBreaker {
 	return &CircuitBreaker{
 		failures:    make(map[string]int),
 		lastFailure: make(map[string]time.Time),

@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"os"
 	"strconv"
 
+	conf "blog-system/common/pkg/config"
 	"blog-system/common/pkg/logger"
 	"blog-system/services/content/application"
 	infra "blog-system/services/content/infrastructure"
@@ -13,22 +13,13 @@ import (
 	httpapi "blog-system/services/content/interfaces/httpserver"
 	pb "blog-system/services/content/proto"
 
-	micro "github.com/CoucouMonEcho/go-framework/micro"
+	"github.com/CoucouMonEcho/go-framework/micro"
 	regEtcd "github.com/CoucouMonEcho/go-framework/micro/registry/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func main() {
-	var configPath string
-	if _, err := os.Stat("/opt/blog-system/configs/content.yaml"); err == nil {
-		configPath = "/opt/blog-system/configs/content.yaml"
-	} else if _, err := os.Stat("../../configs/content.yaml"); err == nil {
-		configPath = "../../configs/content.yaml"
-	} else {
-		configPath = "configs/content.yaml"
-	}
-
-	cfg, err := infra.LoadConfig(configPath)
+	cfg, err := conf.Load("content")
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
+	conf "blog-system/common/pkg/config"
 	"blog-system/services/admin/application"
 	"blog-system/services/admin/domain"
-	"blog-system/services/admin/infrastructure"
 	cpb "blog-system/services/content/proto"
 
 	micro "github.com/CoucouMonEcho/go-framework/micro"
@@ -22,7 +22,7 @@ type ContentClient struct {
 	cli cpb.ContentAdminServiceClient
 }
 
-func NewContentClient(cfg *infrastructure.AppConfig) *ContentClient {
+func NewContentClient(cfg *conf.AppConfig) *ContentClient {
 	var reg registry.Registry
 	if len(cfg.Registry.Endpoints) > 0 {
 		if cli, err := clientv3.New(clientv3.Config{Endpoints: cfg.Registry.Endpoints, DialTimeout: 3 * time.Second}); err == nil {

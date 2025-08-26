@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
+	conf "blog-system/common/pkg/config"
 	"blog-system/services/admin/application"
 	"blog-system/services/admin/domain"
-	"blog-system/services/admin/infrastructure"
 	upb "blog-system/services/user/proto"
 
 	micro "github.com/CoucouMonEcho/go-framework/micro"
@@ -25,7 +25,7 @@ type UserServiceClient struct {
 }
 
 // NewUserServiceClient 创建 gRPC 客户端
-func NewUserServiceClient(cfg *infrastructure.AppConfig) *UserServiceClient {
+func NewUserServiceClient(cfg *conf.AppConfig) *UserServiceClient {
 	timeout := time.Second * 5
 	if cfg.UserService.Timeout > 0 {
 		timeout = time.Duration(cfg.UserService.Timeout) * time.Millisecond

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	conf "blog-system/common/pkg/config"
+
 	"github.com/CoucouMonEcho/go-framework/cache"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -21,7 +23,7 @@ func parseDuration(s string) time.Duration {
 }
 
 // InitCache 初始化缓存连接
-func InitCache(cfg *GatewayConfig) (cache.Cache, error) {
+func InitCache(cfg *conf.AppConfig) (cache.Cache, error) {
 	// 检查是否配置了Redis Cluster
 	if len(cfg.Redis.Cluster.Addrs) == 0 {
 		return nil, fmt.Errorf("未配置Redis Cluster地址")

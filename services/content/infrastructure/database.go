@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	conf "blog-system/common/pkg/config"
 	"blog-system/common/pkg/logger"
 	"fmt"
 	"time"
@@ -25,7 +26,7 @@ func parseDuration(s string) time.Duration {
 	return d
 }
 
-func InitDB(cfg *AppConfig) (*orm.DB, error) {
+func InitDB(cfg *conf.AppConfig) (*orm.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local&interpolateParams=true",
 		cfg.Database.User,
 		cfg.Database.Password,
@@ -43,7 +44,7 @@ func InitDB(cfg *AppConfig) (*orm.DB, error) {
 	))
 }
 
-func InitCache(cfg *AppConfig) (cache.Cache, error) {
+func InitCache(cfg *conf.AppConfig) (cache.Cache, error) {
 	if len(cfg.Redis.Cluster.Addrs) == 0 {
 		return nil, fmt.Errorf("未配置Redis Cluster地址")
 	}

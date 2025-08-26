@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"os"
 	"strconv"
 
+	conf "blog-system/common/pkg/config"
 	"blog-system/common/pkg/logger"
 	"blog-system/services/stat/infrastructure"
 	persistence "blog-system/services/stat/infrastructure/persistence"
@@ -18,15 +18,7 @@ import (
 )
 
 func main() {
-	var configPath string
-	if _, err := os.Stat("/opt/blog-system/configs/stat.yaml"); err == nil {
-		configPath = "/opt/blog-system/configs/stat.yaml"
-	} else if _, err := os.Stat("../../configs/stat.yaml"); err == nil {
-		configPath = "../../configs/stat.yaml"
-	} else {
-		configPath = "configs/stat.yaml"
-	}
-	cfg, err := infrastructure.LoadConfig(configPath)
+	cfg, err := conf.Load("stat")
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}
@@ -61,7 +53,7 @@ func main() {
 	pbSrv := grpcapi.NewGRPCServer(agg)
 	pb.RegisterStatServiceServer(grpcSrv, pbSrv)
 	addr := ":" + strconv.Itoa(cfg.App.Port)
-	go func() { _ = grpcSrv.Start(":9004") }()
+	go func() { _ = grpcSrv.Start(":" + strconv.Itoa(cfg.GRPC.Port)) }()
 	if err := http.Run(addr); err != nil {
 		lgr.LogWithContext("stat-service", "main", "FATAL", "服务启动失败: %v", err)
 	}

@@ -2,11 +2,11 @@ package main
 
 import (
 	"log"
-	"os"
 	"strconv"
 
 	"blog-system/common/pkg/logger"
 
+	conf "blog-system/common/pkg/config"
 	"blog-system/services/user/application"
 	infra "blog-system/services/user/infrastructure"
 	persistence "blog-system/services/user/infrastructure/persistence"
@@ -20,23 +20,7 @@ import (
 )
 
 func main() {
-	// 加载配置 - 修复路径问题
-	var configPath string
-
-	// 优先使用绝对路径（部署环境）
-	if _, err := os.Stat("/opt/blog-system/configs/user.yaml"); err == nil {
-		configPath = "/opt/blog-system/configs/user.yaml"
-	} else if _, err := os.Stat("../../configs/user.yaml"); err == nil {
-		// 开发环境
-		configPath = "../../configs/user.yaml"
-	} else {
-		// fallback到相对路径
-		configPath = "configs/user.yaml"
-	}
-
-	log.Printf("使用配置文件: %s", configPath)
-
-	cfg, err := infra.LoadConfig(configPath)
+	cfg, err := conf.Load("user")
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}
@@ -51,7 +35,6 @@ func main() {
 	logger.Init(loggerInstance)
 	// 记录服务启动日志
 	loggerInstance.LogWithContext("user-service", "main", "INFO", "开始启动用户服务")
-	loggerInstance.LogWithContext("user-service", "main", "INFO", "配置文件: %s", configPath)
 
 	// 初始化数据库连接 - 添加错误处理但不退出
 	db, err := infra.InitDB(cfg)

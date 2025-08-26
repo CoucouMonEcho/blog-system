@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	conf "blog-system/common/pkg/config"
 	"blog-system/services/admin/application"
 	pb "blog-system/services/stat/proto"
 
@@ -20,7 +21,7 @@ type StatServiceClient struct {
 	cli pb.StatServiceClient
 }
 
-func NewStatServiceClient(cfg *AppConfig) *StatServiceClient {
+func NewStatServiceClient(cfg *conf.AppConfig) *StatServiceClient {
 	var r registry.Registry
 	if len(cfg.Registry.Endpoints) > 0 {
 		if cli, err := clientv3.New(clientv3.Config{Endpoints: cfg.Registry.Endpoints, DialTimeout: 3 * time.Second}); err == nil {

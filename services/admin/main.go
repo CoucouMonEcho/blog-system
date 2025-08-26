@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"os"
 	"strconv"
 
+	conf "blog-system/common/pkg/config"
 	"blog-system/common/pkg/logger"
 	"blog-system/services/admin/application"
 	"blog-system/services/admin/infrastructure"
@@ -13,16 +13,7 @@ import (
 )
 
 func main() {
-	var configPath string
-	if _, err := os.Stat("/opt/blog-system/configs/admin.yaml"); err == nil {
-		configPath = "/opt/blog-system/configs/admin.yaml"
-	} else if _, err := os.Stat("../../configs/admin.yaml"); err == nil {
-		configPath = "../../configs/admin.yaml"
-	} else {
-		configPath = "configs/admin.yaml"
-	}
-
-	cfg, err := infrastructure.LoadConfig(configPath)
+	cfg, err := conf.Load("admin")
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}

@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"os"
 	"strconv"
 
+	conf "blog-system/common/pkg/config"
 	"blog-system/common/pkg/logger"
 	"blog-system/services/gateway/api"
 	"blog-system/services/gateway/application"
@@ -13,23 +13,7 @@ import (
 )
 
 func main() {
-	// 加载配置 - 修复路径问题
-	var configPath string
-
-	// 优先使用绝对路径（部署环境）
-	if _, err := os.Stat("/opt/blog-system/configs/gateway.yaml"); err == nil {
-		configPath = "/opt/blog-system/configs/gateway.yaml"
-	} else if _, err := os.Stat("../../configs/gateway.yaml"); err == nil {
-		// 开发环境
-		configPath = "../../configs/gateway.yaml"
-	} else {
-		// fallback到相对路径
-		configPath = "configs/gateway.yaml"
-	}
-
-	log.Printf("使用配置文件: %s", configPath)
-
-	cfg, err := infrastructure.LoadConfig(configPath)
+	cfg, err := conf.Load("gateway")
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}
@@ -45,7 +29,6 @@ func main() {
 
 	// 记录服务启动日志
 	logger.L().LogWithContext("gateway-service", "main", "INFO", "开始启动网关服务")
-	logger.L().LogWithContext("gateway-service", "main", "INFO", "配置文件: %s", configPath)
 
 	// 初始化缓存连接 - 添加错误处理但不退出
 	cache, err := infrastructure.InitCache(cfg)

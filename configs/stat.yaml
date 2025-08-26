@@ -1,7 +1,9 @@
 app:
   name: stat-service
   port: 8004
-  grpc_port: 9004
+
+grpc:
+  port: 9004
 
 database:
   driver: "mysql"
