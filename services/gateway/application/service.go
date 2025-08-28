@@ -43,7 +43,7 @@ func NewGatewayService(
 func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequest) (*domain.ProxyResponse, error) {
 	// 1. 限流检查
 	if s.rateLimiter != nil && !s.rateLimiter.Allow(req.Client) {
-		s.logger.LogWithContext("gateway-service", "application", "WARN", "限流触发: client=%s path=%s", req.Client, req.Path)
+		s.logger.Warn("application: 限流触发: client=%s path=%s", req.Client, req.Path)
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusTooManyRequests,
 			Body:       []byte("请求过于频繁，请稍后再试"),
@@ -53,7 +53,7 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 	// 2. 路由匹配
 	route := s.routeRepo.GetRouteByPath(req.Path)
 	if route == nil {
-		s.logger.LogWithContext("gateway-service", "application", "WARN", "路由未命中: path=%s", req.Path)
+		s.logger.Warn("application: 路由未命中: path=%s", req.Path)
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusNotFound,
 			Body:       []byte("路由不存在"),
@@ -62,7 +62,7 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 
 	// 3. 熔断检查
 	if s.circuitBreaker != nil && s.circuitBreaker.IsOpen(route.Target) {
-		s.logger.LogWithContext("gateway-service", "application", "WARN", "熔断开启: target=%s", route.Target)
+		s.logger.Warn("application: 熔断开启: target=%s", route.Target)
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusServiceUnavailable,
 			Body:       []byte("服务暂时不可用"),
@@ -82,7 +82,7 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 		if s.circuitBreaker != nil {
 			s.circuitBreaker.RecordFailure(targetStr)
 		}
-		s.logger.LogWithContext("gateway-service", "application", "WARN", "目标不健康: target=%s", targetStr)
+		s.logger.Warn("application: 目标不健康: target=%s", targetStr)
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusServiceUnavailable,
 			Body:       []byte("目标服务不可用"),
@@ -92,7 +92,7 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 	// 6. 构建目标URL
 	targetURL, err := url.Parse(targetStr)
 	if err != nil {
-		s.logger.LogWithContext("gateway-service", "application", "ERROR", "解析目标失败: target=%s err=%v", targetStr, err)
+		s.logger.Error("application: 解析目标失败: target=%s err=%v", targetStr, err)
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusInternalServerError,
 			Body:       []byte("路由配置错误"),
@@ -113,7 +113,7 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 	// 9. 构建请求（使用字节Reader，避免编码问题）
 	proxyReq, err := http.NewRequestWithContext(ctx, req.Method, targetURL.String()+forwardPath, bytes.NewReader(req.Body))
 	if err != nil {
-		s.logger.LogWithContext("gateway-service", "application", "ERROR", "构建请求失败: url=%s err=%v", targetURL.String()+forwardPath, err)
+		s.logger.Error("application: 构建请求失败: url=%s err=%v", targetURL.String()+forwardPath, err)
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusInternalServerError,
 			Body:       []byte("创建请求失败"),
@@ -156,7 +156,7 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 		if s.circuitBreaker != nil {
 			s.circuitBreaker.RecordFailure(targetStr)
 		}
-		s.logger.LogWithContext("gateway-service", "application", "ERROR", "请求目标失败: target=%s err=%v", targetStr, err)
+		s.logger.Error("application: 请求目标失败: target=%s err=%v", targetStr, err)
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusBadGateway,
 			Body:       []byte("请求目标服务失败"),
@@ -167,7 +167,7 @@ func (s *GatewayService) ProxyRequest(ctx context.Context, req *domain.ProxyRequ
 	// 12. 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		s.logger.LogWithContext("gateway-service", "application", "ERROR", "读取响应失败: target=%s err=%v", targetStr, err)
+		s.logger.Error("application: 读取响应失败: target=%s err=%v", targetStr, err)
 		return &domain.ProxyResponse{
 			StatusCode: http.StatusInternalServerError,
 			Body:       []byte("读取响应失败"),

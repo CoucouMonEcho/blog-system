@@ -33,7 +33,7 @@ func (s *ContentAppService) Create(ctx context.Context, a *domain.Article) (*dom
 	}
 	a.UpdatedAt = now
 	if err := s.repo.CreateArticle(ctx, a); err != nil {
-		s.logger.LogWithContext("content-service", "application", "ERROR", "创建文章失败: %v", err)
+		s.logger.Error("application: 创建文章失败: %v", err)
 		return nil, err
 	}
 	// 简单回查：以 slug 为唯一键可以添加，暂时省略，调用方可再查

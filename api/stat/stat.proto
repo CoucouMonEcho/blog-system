@@ -2,16 +2,40 @@ syntax = "proto3";
 package stat;
 option go_package = "blog-system/services/stat/proto";
 
-message OverviewRequest {}
-message OverviewResponse { int64 pv_today = 1; int64 uv_today = 2; int64 online_users = 3; }
 
-message PVTimeSeriesRequest { string from = 1; string to = 2; string interval = 3; }
-message Point { int64 ts = 1; int64 value = 2; }
-message PVTimeSeriesResponse { repeated Point points = 1; }
+// protoc --go_out=../../../. --go-grpc_out=../../../. stat.proto
 
+message Point {
+  int64 ts = 1;
+  int64 value = 2;
+}
+
+// 统计服务
 service StatService {
   rpc Overview(OverviewRequest) returns (OverviewResponse);
   rpc PVTimeSeries(PVTimeSeriesRequest) returns (PVTimeSeriesResponse);
+}
+
+//TODO
+message OverviewRequest {}
+
+//TODO
+message OverviewResponse {
+  int64 pv_today = 1;
+  int64 uv_today = 2;
+  int64 online_users = 3;
+}
+
+//TODO
+message PVTimeSeriesRequest {
+  string from = 1;
+  string to = 2;
+  string interval = 3;
+}
+
+//TODO
+message PVTimeSeriesResponse {
+  repeated Point points = 1;
 }
 
 

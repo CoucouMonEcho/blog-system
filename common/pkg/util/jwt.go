@@ -7,7 +7,8 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-var jwtKey = []byte("your-secret-key-change-in-production")
+// jwtKey 服务重启时失效
+var jwtKey = []byte("coucoumonecho-0721" + time.Now().Format("20060102150405.000000"))
 
 // Claims JWT 声明
 type Claims struct {

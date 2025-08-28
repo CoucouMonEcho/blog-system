@@ -22,15 +22,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}
-	lgr, err := logger.NewLogger(&cfg.Log)
-	if err != nil {
-		log.Fatalf("初始化日志失败: %v", err)
-	}
 	// 初始化全局 Logger
-	logger.Init(lgr)
+	logger.Init(&cfg.Log)
 	db, err := infrastructure.InitDB(cfg)
 	if err != nil {
-		lgr.LogWithContext("stat-service", "database", "ERROR", "数据库连接失败: %v", err)
+		logger.Log().Error("database: 数据库连接失败: %v", err)
 	}
 	repo := persistence.NewStatRepository(db)
 	http := httpapi.NewHTTPServer()
@@ -55,6 +51,6 @@ func main() {
 	addr := ":" + strconv.Itoa(cfg.App.Port)
 	go func() { _ = grpcSrv.Start(":" + strconv.Itoa(cfg.GRPC.Port)) }()
 	if err := http.Run(addr); err != nil {
-		lgr.LogWithContext("stat-service", "main", "FATAL", "服务启动失败: %v", err)
+		logger.Log().Error("main: 服务启动失败: %v", err)
 	}
 }

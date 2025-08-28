@@ -35,7 +35,7 @@ func InitDB(cfg *conf.AppConfig) (*orm.DB, error) {
 		cfg.Database.Name,
 	)
 	ql := ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
-		logger.L().LogWithContext("content-service", "orm", "DEBUG", "sql=%s args=%v", sql, args)
+		logger.Log().Debug("orm: sql=%s args=%v", sql, args)
 	}).Build()
 	return orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(
 		ormotel.NewMiddlewareBuilder(nil).Build(),

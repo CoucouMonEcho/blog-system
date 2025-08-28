@@ -90,16 +90,10 @@ type ServiceDiscovery struct {
 // NewServiceDiscovery 创建服务发现
 func NewServiceDiscovery() *ServiceDiscovery {
 	// 读取统一配置
-	gcfg, _ := conf.LoadByPath(conf.ResolvePath("gateway"))
+	gcfg, _ := conf.Load("gateway")
 
-	var endpoints []string
-	if len(gcfg.Registry.Endpoints) > 0 {
-		endpoints = gcfg.Registry.Endpoints
-	} else {
-		endpoints = []string{"http://127.0.0.1:2379"}
-	}
 	cli, _ := clientv3.New(clientv3.Config{
-		Endpoints:   endpoints,
+		Endpoints:   gcfg.Registry.Endpoints,
 		DialTimeout: 3 * time.Second,
 	})
 	r, _ := regEtcd.NewRegistry(cli)

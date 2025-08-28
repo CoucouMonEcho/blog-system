@@ -24,46 +24,36 @@ func main() {
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}
+	logger.Init(&cfg.Log)
+	logger.Log().Info("main: 开始启动用户服务")
 
-	// 初始化日志系统
-	loggerInstance, err := logger.NewLogger(&cfg.Log)
-	if err != nil {
-		log.Fatalf("初始化日志系统失败: %v", err)
-	}
-
-	// 初始化全局 Logger
-	logger.Init(loggerInstance)
-	// 记录服务启动日志
-	loggerInstance.LogWithContext("user-service", "main", "INFO", "开始启动用户服务")
-
-	// 初始化数据库连接 - 添加错误处理但不退出
+	// 初始化数据库连接
 	db, err := infra.InitDB(cfg)
 	if err != nil {
-		loggerInstance.LogWithContext("user-service", "database", "FATAL", "数据库连接失败，服务退出: %v", err)
+		logger.Log().Error("main: 数据库连接失败，服务退出: %v", err)
 		return
 	}
-	loggerInstance.LogWithContext("user-service", "database", "INFO", "数据库连接成功")
+	logger.Log().Info("main: 数据库连接成功")
 
 	// 初始化缓存 - 添加错误处理但不退出
 	cache, err := infra.InitCache(cfg)
 	if err != nil {
-		loggerInstance.LogWithContext("user-service", "cache", "ERROR", "缓存连接失败: %v", err)
-		loggerInstance.LogWithContext("user-service", "cache", "WARN", "缓存连接失败，但继续启动服务")
+		logger.Log().Error("main: 缓存连接失败: %v", err)
 	} else {
-		loggerInstance.LogWithContext("user-service", "cache", "INFO", "缓存连接成功")
+		logger.Log().Info("main: 缓存连接成功")
 	}
 
 	// 初始化仓储层
 	userRepo := persistence.NewUserRepository(db)
-	loggerInstance.LogWithContext("user-service", "repository", "INFO", "用户仓储层初始化完成")
+	logger.Log().Info("main: 用户仓储层初始化完成")
 
 	// 初始化应用服务
-	userService := application.NewUserService(userRepo, cache, loggerInstance)
-	loggerInstance.LogWithContext("user-service", "application", "INFO", "用户应用服务初始化完成")
+	userService := application.NewUserService(userRepo, cache)
+	logger.Log().Info("main: 用户应用服务初始化完成")
 
 	// 启动 HTTP 服务
 	server := httpapi.NewHTTPServer(userService)
-	loggerInstance.LogWithContext("user-service", "api", "INFO", "HTTP服务器初始化完成")
+	logger.Log().Info("main: HTTP服务器初始化完成")
 
 	// 启动 gRPC 服务
 	grpcSrv, _ := micro.NewServer("user-service")
@@ -78,16 +68,16 @@ func main() {
 
 	// 注册到注册中心（HTTP）
 	if err := infra.RegisterService(cfg); err != nil {
-		loggerInstance.LogWithContext("user-service", "registry", "ERROR", "注册到注册中心失败: %v", err)
+		logger.Log().Error("main: 注册到注册中心失败: %v", err)
 	} else {
-		loggerInstance.LogWithContext("user-service", "registry", "INFO", "注册中心注册成功")
+		logger.Log().Info("main: 注册中心注册成功")
 	}
 
 	addr := ":" + strconv.Itoa(cfg.App.Port)
-	loggerInstance.LogWithContext("user-service", "main", "INFO", "用户服务启动中，监听端口: %s", addr)
+	logger.Log().Info("main: 用户服务启动中，监听端口: %s", addr)
 
-	go func() { _ = grpcSrv.Start(":9002") }()
+	go func() { _ = grpcSrv.Start(":9001") }()
 	if err := server.Run(addr); err != nil {
-		loggerInstance.LogWithContext("user-service", "main", "FATAL", "服务启动失败: %v", err)
+		logger.Log().Error("main: 服务启动失败: %v", err)
 	}
 }

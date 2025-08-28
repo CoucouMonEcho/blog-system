@@ -7,10 +7,11 @@ import (
 	"blog-system/common/pkg/util"
 	"blog-system/services/user/application"
 	"net/http"
-	"runtime/debug"
 	"time"
 
 	"github.com/CoucouMonEcho/go-framework/web"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/accesslog"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/errhandle"
 	webprom "github.com/CoucouMonEcho/go-framework/web/middlewares/prometheus"
 )
 
@@ -22,55 +23,16 @@ type HTTPServer struct {
 
 // NewHTTPServer 创建 HTTP 服务器
 func NewHTTPServer(userService *application.UserAppService) *HTTPServer {
-	// Request ID 中间件
-	requestIDMiddleware := func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			requestID := logger.GenerateRequestID()
-			ctx.Req = ctx.Req.WithContext(logger.WithRequestID(ctx.Req.Context(), requestID))
-			ctx.Resp.Header().Set("X-Request-ID", requestID)
-			next(ctx)
-		}
-	}
-	// 恢复中间件
-	customRecover := func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			defer func() {
-				if r := recover(); r != nil {
-					stack := debug.Stack()
-					logger.L().LogWithContextAndRequestID(
-						ctx.Req.Context(), "user-service", "recover", "ERROR",
-						"panic=%v method=%s path=%s remote=%s\nheaders=%v\nstack=%s",
-						r, ctx.Req.Method, ctx.Req.URL.Path, ctx.Req.RemoteAddr, ctx.Req.Header, string(stack),
-					)
-					_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, "内部服务错误"))
-				}
-			}()
-			next(ctx)
-		}
-	}
-	// 日志中间件
-	requestLogger := func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			start := time.Now()
-			next(ctx)
-			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "user-service", "http", "INFO",
-				"请求: %s %s %d %s %s",
-				ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
-		}
-	}
-
-	server := web.NewHTTPServer(
-		web.ServerWithLogger(logger.L().Error),
-		web.ServerWithMiddlewares(
-			requestIDMiddleware,
-			customRecover,
-			requestLogger,
-			webprom.MiddlewareBuilder{Namespace: "blog", Subsystem: "user", Name: "http", Help: "user http latency"}.Build(),
-		),
-	)
 	svc := &HTTPServer{
 		userService: userService,
-		server:      server,
+		server: web.NewHTTPServer(
+			web.ServerWithLogger(logger.Log().Error),
+			web.ServerWithMiddlewares(
+				errhandle.NewMiddlewareBuilder().RegisterError(http.StatusInternalServerError, []byte("内部服务错误")).Build(),
+				accesslog.NewMiddlewareBuilder().LogFunc(func(log string) { logger.Log().Info(log) }).Build(),
+				webprom.MiddlewareBuilder{Namespace: "blog-system", Subsystem: "user", Name: "http", Help: "user http latency"}.Build(),
+			),
+		),
 	}
 	svc.registerRoutes()
 	return svc
@@ -78,12 +40,8 @@ func NewHTTPServer(userService *application.UserAppService) *HTTPServer {
 
 // registerRoutes 注册路由
 func (s *HTTPServer) registerRoutes() {
-	// 健康检查
 	s.server.Get("/health", s.HealthCheck)
-
-	// 公开接口
 	s.server.Post("/api/login", s.Login)
-
 	// 认证接口
 	s.server.Use(http.MethodGet, "/api/auth/*", s.AuthMiddleware())
 	s.server.Use(http.MethodPost, "/api/auth/*", s.AuthMiddleware())
@@ -109,25 +67,15 @@ func (s *HTTPServer) Login(ctx *web.Context) {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-
 	if err := ctx.BindJSON(&req); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
-
-	user, err := s.userService.Login(ctx.Req.Context(), req.Username, req.Password)
+	user, token, err := s.userService.Login(ctx.Req.Context(), req.Username, req.Password)
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
 		return
 	}
-
-	// 生成 JWT 令牌
-	token, err := util.GenerateToken(user.ID, user.Role)
-	if err != nil {
-		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
-		return
-	}
-
 	_ = ctx.RespJSONOK(dto.Success(map[string]any{
 		"token": token,
 		"user":  user,
@@ -141,19 +89,16 @@ func (s *HTTPServer) GetUserInfo(ctx *web.Context) {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
-
 	user, err := s.userService.GetUserInfo(ctx.Req.Context(), userID)
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusNotFound, dto.Error(errcode.ErrUserNotFound, err.Error()))
 		return
 	}
-
 	_ = ctx.RespJSONOK(dto.Success(user))
 }
 
 // UpdateUserInfo 更新用户信息（使用 JWT 中的 user_id）
 func (s *HTTPServer) UpdateUserInfo(ctx *web.Context) {
-	// 从认证中间件写入的上下文中获取用户 ID
 	var userID int64
 	if v, ok := ctx.UserValues["user_id"]; ok {
 		if id, ok2 := v.(int64); ok2 {
@@ -170,12 +115,10 @@ func (s *HTTPServer) UpdateUserInfo(ctx *web.Context) {
 		Email    string `json:"email,omitempty"`
 		Avatar   string `json:"avatar,omitempty"`
 	}
-
 	if err := ctx.BindJSON(&req); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
-
 	updates := make(map[string]any)
 	if req.Username != "" {
 		updates["username"] = req.Username
@@ -186,12 +129,10 @@ func (s *HTTPServer) UpdateUserInfo(ctx *web.Context) {
 	if req.Avatar != "" {
 		updates["avatar"] = req.Avatar
 	}
-
 	if err := s.userService.UpdateUserInfo(ctx.Req.Context(), userID, updates); err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
 	}
-
 	_ = ctx.RespJSONOK(dto.SuccessNil())
 }
 
@@ -212,17 +153,14 @@ func (s *HTTPServer) ChangePassword(ctx *web.Context) {
 		OldPassword string `json:"old_password" binding:"required"`
 		NewPassword string `json:"new_password" binding:"required,min=6"`
 	}
-
 	if err := ctx.BindJSON(&req); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, err.Error()))
 		return
 	}
-
 	if err := s.userService.ChangePassword(ctx.Req.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
 		_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrPasswordInvalid, err.Error()))
 		return
 	}
-
 	_ = ctx.RespJSONOK(dto.SuccessNil())
 }
 
@@ -235,23 +173,16 @@ func (s *HTTPServer) AuthMiddleware() web.Middleware {
 				_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrUnauthorized, "缺少认证令牌"))
 				return
 			}
-
-			// 移除 "Bearer " 前缀
 			if len(token) > 7 && token[:7] == "Bearer " {
 				token = token[7:]
 			}
-
 			claims, err := util.ParseToken(token)
 			if err != nil {
 				_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrTokenInvalid, err.Error()))
 				return
 			}
-
-			// 存储用户信息
 			ctx.UserValues["user_id"] = claims.UserID
 			ctx.UserValues["user_role"] = claims.Role
-
-			// next
 			next(ctx)
 		}
 	}

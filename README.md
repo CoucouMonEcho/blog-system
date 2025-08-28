@@ -7,7 +7,7 @@
 ```
 blog-system/
 ├── services/           # 微服务模块
-│   ├── user/          # 用户服务 (HTTP:8001, gRPC:9002)
+│   ├── user/          # 用户服务 (HTTP:8001, gRPC:9001)
 │   ├── content/       # 内容服务 (HTTP:8002, gRPC:9002)
 │   ├── admin/         # 管理服务 (HTTP:8003)
 │   │   └── infrastructure/clients # gRPC 客户端（user/content/prom/stat）

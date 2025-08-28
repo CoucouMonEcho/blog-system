@@ -1,7 +1,6 @@
 package application
 
 import (
-	"blog-system/common/pkg/errcode"
 	"blog-system/common/pkg/logger"
 	"blog-system/services/admin/domain"
 	"context"
@@ -22,7 +21,6 @@ type AdminService struct {
 
 // UserClient 抽象 user-service 能力（登录 + 管理）
 type UserClient interface {
-	Login(ctx context.Context, username, password string) (token string, role string, err error)
 	Create(ctx context.Context, u *domain.User) error
 	Update(ctx context.Context, u *domain.User) error
 	Delete(ctx context.Context, id int64) error
@@ -120,21 +118,6 @@ func (s *AdminService) DeleteCategory(ctx context.Context, id int64) error {
 }
 func (s *AdminService) ListCategories(ctx context.Context, page, pageSize int) ([]*domain.Category, int64, error) {
 	return s.Content.ListCategories(ctx, page, pageSize)
-}
-
-// AdminLogin 调用 user-service 登录并校验管理员角色
-func (s *AdminService) AdminLogin(ctx context.Context, username, password string) (string, error) {
-	if s.Users == nil {
-		return "", errors.New("用户客户端未初始化")
-	}
-	token, role, err := s.Users.Login(ctx, username, password)
-	if err != nil {
-		return "", err
-	}
-	if role != "admin" {
-		return "", errors.New(errcode.GetMessage(errcode.ErrAdminForbidden))
-	}
-	return token, nil
 }
 
 // Dashboard 概览：从 stat 获取 pv/uv/online，再从仓储取文章/分类总数；5xx 暂返回 0（可接入 otel/日志）

@@ -27,7 +27,7 @@ func InitDB(cfg *conf.AppConfig) (*orm.DB, error) {
 
 	// 恢复中间件配置，使用业务 logger
 	ql := ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
-		logger.L().LogWithContext("user-service", "orm", "DEBUG", "sql=%s args=%v", sql, args)
+		logger.Log().Debug("orm: sql=%s args=%v", sql, args)
 	}).Build()
 
 	db, err := orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(

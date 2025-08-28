@@ -25,9 +25,7 @@ func NewHTTPServer(contentService *application.ContentAppService) *HTTPServer {
 	// Request ID 中间件
 	requestIDMiddleware := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
-			requestID := logger.GenerateRequestID()
-			ctx.Req = ctx.Req.WithContext(logger.WithRequestID(ctx.Req.Context(), requestID))
-			ctx.Resp.Header().Set("X-Request-ID", requestID)
+			ctx.Resp.Header().Set("X-Request-ID", time.Now().Format("20060102150405.000000"))
 			next(ctx)
 		}
 	}
@@ -36,7 +34,7 @@ func NewHTTPServer(contentService *application.ContentAppService) *HTTPServer {
 		return func(ctx *web.Context) {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "content-service", "recover", "ERROR", "panic=%v method=%s path=%s remote=%s\nheaders=%v\nstack=%s", r, ctx.Req.Method, ctx.Req.URL.Path, ctx.Req.RemoteAddr, ctx.Req.Header, string(debug.Stack()))
+					logger.Log().Error("recover: panic=%v method=%s path=%s remote=%s\nheaders=%v\nstack=%s", r, ctx.Req.Method, ctx.Req.URL.Path, ctx.Req.RemoteAddr, ctx.Req.Header, string(debug.Stack()))
 					_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, "内部服务错误"))
 				}
 			}()
@@ -48,12 +46,12 @@ func NewHTTPServer(contentService *application.ContentAppService) *HTTPServer {
 		return func(ctx *web.Context) {
 			start := time.Now()
 			next(ctx)
-			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "content-service", "http", "INFO", "请求: %s %s %d %s %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
+			logger.Log().Info("http: 请求: %s %s %d %s %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
 		}
 	}
 
 	server := web.NewHTTPServer(
-		web.ServerWithLogger(logger.L().Error),
+		web.ServerWithLogger(logger.Log().Error),
 		web.ServerWithMiddlewares(
 			requestIDMiddleware,
 			customRecover,

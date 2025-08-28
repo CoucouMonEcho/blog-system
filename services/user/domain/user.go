@@ -37,7 +37,7 @@ type UserRepository interface {
 // UserService 用户领域服务
 type UserService interface {
 	Register(ctx context.Context, username, email, password string) (*User, error)
-	Login(ctx context.Context, username, password string) (*User, error)
+	Login(ctx context.Context, username, password string) (*User, string, error)
 	GetUserInfo(ctx context.Context, id int64) (*User, error)
 	UpdateUserInfo(ctx context.Context, id int64, updates map[string]interface{}) error
 	ChangePassword(ctx context.Context, id int64, oldPassword, newPassword string) error

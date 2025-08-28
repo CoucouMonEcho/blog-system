@@ -15,7 +15,7 @@ import (
 func InitDB(cfg *conf.AppConfig) (*orm.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local&interpolateParams=true", cfg.Database.User, cfg.Database.Password, cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
 	ql := ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
-		logger.L().LogWithContext("stat-service", "orm", "DEBUG", "sql=%s args=%v", sql, args)
+		logger.Log().Debug("orm: sql=%s args=%v", sql, args)
 	}).Build()
 	return orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(
 		ormotel.NewMiddlewareBuilder(nil).Build(),

@@ -26,9 +26,7 @@ func NewHTTPServer() *HTTPServer {
 	// Request ID 中间件
 	requestIDMiddleware := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
-			requestID := logger.GenerateRequestID()
-			ctx.Req = ctx.Req.WithContext(logger.WithRequestID(ctx.Req.Context(), requestID))
-			ctx.Resp.Header().Set("X-Request-ID", requestID)
+			ctx.Resp.Header().Set("X-Request-ID", time.Now().Format("20060102150405.000000"))
 			next(ctx)
 		}
 	}
@@ -37,7 +35,7 @@ func NewHTTPServer() *HTTPServer {
 		return func(ctx *web.Context) {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "admin-service", "recover", "ERROR", "panic=%v path=%s\nstack=%s", r, ctx.Req.URL.Path, string(debug.Stack()))
+					logger.Log().Error("recover: panic=%v path=%s\nstack=%s", r, ctx.Req.URL.Path, string(debug.Stack()))
 					_ = ctx.RespJSON(http.StatusInternalServerError, map[string]any{"error": "内部服务错误"})
 				}
 			}()
@@ -48,11 +46,11 @@ func NewHTTPServer() *HTTPServer {
 		return func(ctx *web.Context) {
 			start := time.Now()
 			next(ctx)
-			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "admin-service", "http", "INFO", "请求: %s %s %d %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start))
+			logger.Log().Info("http: 请求: %s %s %d %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start))
 		}
 	}
 	server := web.NewHTTPServer(
-		web.ServerWithLogger(logger.L().Error),
+		web.ServerWithLogger(logger.Log().Error),
 		web.ServerWithMiddlewares(
 			requestIDMiddleware,
 			customRecover,
@@ -64,24 +62,6 @@ func NewHTTPServer() *HTTPServer {
 	s := &HTTPServer{server: server}
 	s.server.Get("/health", func(ctx *web.Context) {
 		_ = ctx.RespJSONOK(dto.Success(map[string]any{"status": "ok", "service": "admin"}))
-	})
-	// 管理端登录（调用 user-service）
-	s.server.Post("/api/login", func(ctx *web.Context) {
-		var req struct{ Username, Password string }
-		if err := ctx.BindJSON(&req); err != nil || req.Username == "" || req.Password == "" {
-			_ = ctx.RespJSON(http.StatusBadRequest, dto.Error(errcode.ErrParam, "参数错误"))
-			return
-		}
-		if s.app == nil {
-			_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, "应用未初始化"))
-			return
-		}
-		token, err := s.app.AdminLogin(ctx.Req.Context(), req.Username, req.Password)
-		if err != nil {
-			_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
-			return
-		}
-		_ = ctx.RespJSONOK(dto.Success(map[string]any{"token": token}))
 	})
 	// 认证拦截（除登录外的所有 /api/* 路由）
 	s.server.Use(http.MethodGet, "/api/*", s.adminAuth())

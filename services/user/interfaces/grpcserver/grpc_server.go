@@ -14,9 +14,8 @@ type GRPCServer struct {
 
 func NewGRPCServer(app *application.UserAppService) *GRPCServer { return &GRPCServer{app: app} }
 
-// 复用已有应用层逻辑：登录/列表/更新状态/更新信息
 func (s *GRPCServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
-	u, err := s.app.Login(ctx, req.Username, req.Password)
+	u, token, err := s.app.Login(ctx, req.Username, req.Password)
 	if err != nil {
 		return &pb.LoginResponse{Code: 1, Message: err.Error()}, nil
 	}
@@ -24,8 +23,14 @@ func (s *GRPCServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	if u.Avatar != nil && u.Avatar.Valid {
 		avatar = u.Avatar.String
 	}
-	// token 由 admin/user HTTP 层生成，这里仅回传用户信息
-	return &pb.LoginResponse{Code: 0, Message: "success", User: &pb.User{Id: u.ID, Username: u.Username, Email: u.Email, Role: u.Role, Avatar: avatar, Status: int32(u.Status)}}, nil
+	return &pb.LoginResponse{Code: 0, Message: "success", Token: token, User: &pb.User{
+		Id:       u.ID,
+		Username: u.Username,
+		Email:    u.Email,
+		Role:     u.Role,
+		Avatar:   avatar,
+		Status:   int32(u.Status),
+	}}, nil
 }
 
 func (s *GRPCServer) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.ListUsersResponse, error) {

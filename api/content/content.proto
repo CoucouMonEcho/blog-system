@@ -4,6 +4,9 @@ package content;
 
 option go_package = "blog-system/services/content/proto";
 
+// protoc --go_out=../../../. --go-grpc_out=../../../. stat.proto
+
+// 文章信息
 message Article {
   int64 id = 1;
   string title = 2;
@@ -20,6 +23,7 @@ message Article {
   string updated_at = 13;
 }
 
+// 分类信息
 message Category {
   int64 id = 1;
   string name = 2;
@@ -29,14 +33,13 @@ message Category {
   string updated_at = 6;
 }
 
+// 分页信息
 message Page {
   int32 page = 1;
   int32 page_size = 2;
 }
 
-message ArticleListResponse { repeated Article data = 1; int64 total = 2; }
-message CategoryListResponse { repeated Category data = 1; int64 total = 2; }
-
+// 内容服务
 service ContentAdminService {
   rpc CreateArticle(Article) returns (.content.Empty);
   rpc UpdateArticle(Article) returns (.content.Empty);
@@ -49,6 +52,17 @@ service ContentAdminService {
   rpc DeleteCategory(.content.Id) returns (.content.Empty);
   rpc ListCategories(Page) returns (CategoryListResponse);
   rpc CountCategories(.content.Empty) returns (.content.Count);
+}
+
+// 文章信息
+message ArticleListResponse {
+  repeated Article data = 1;
+  int64 total = 2;
+}
+
+message CategoryListResponse {
+  repeated Category data = 1;
+  int64 total = 2;
 }
 
 message Empty {}

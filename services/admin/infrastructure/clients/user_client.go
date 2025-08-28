@@ -43,18 +43,6 @@ func NewUserServiceClient(cfg *conf.AppConfig) *UserServiceClient {
 	return &UserServiceClient{cc: cc, cli: upb.NewUserServiceClient(cc), registry: reg}
 }
 
-func (c *UserServiceClient) Login(ctx context.Context, username, password string) (string, string, error) {
-	resp, err := c.cli.Login(ctx, &upb.LoginRequest{Username: username, Password: password})
-	if err != nil {
-		return "", "", err
-	}
-	if resp.Code != 0 || resp.User == nil {
-		return "", "", errors.New("login failed")
-	}
-	// token 由 admin 在本地生成（保持兼容）
-	return "", resp.User.Role, nil
-}
-
 func (c *UserServiceClient) Create(ctx context.Context, u *domain.User) error {
 	_, err := c.cli.Register(ctx, &upb.RegisterRequest{Username: u.Username, Email: u.Email, Password: u.Password})
 	return err

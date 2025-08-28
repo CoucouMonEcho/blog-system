@@ -23,12 +23,10 @@ type HTTPServer struct {
 }
 
 func NewHTTPServer() *HTTPServer {
-	// Request ID 中间件
+	// Request ID 中间件（简化，无需上下文存储）
 	requestIDMiddleware := func(next web.Handler) web.Handler {
 		return func(ctx *web.Context) {
-			requestID := logger.GenerateRequestID()
-			ctx.Req = ctx.Req.WithContext(logger.WithRequestID(ctx.Req.Context(), requestID))
-			ctx.Resp.Header().Set("X-Request-ID", requestID)
+			ctx.Resp.Header().Set("X-Request-ID", time.Now().Format("20060102150405.000000"))
 			next(ctx)
 		}
 	}
@@ -37,7 +35,7 @@ func NewHTTPServer() *HTTPServer {
 		return func(ctx *web.Context) {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "stat-service", "recover", "ERROR", "panic=%v path=%s\nstack=%s", r, ctx.Req.URL.Path, string(debug.Stack()))
+					logger.Log().Error("recover: panic=%v path=%s\nstack=%s", r, ctx.Req.URL.Path, string(debug.Stack()))
 					_ = ctx.RespJSON(http.StatusInternalServerError, map[string]any{"error": "内部服务错误"})
 				}
 			}()
@@ -48,11 +46,11 @@ func NewHTTPServer() *HTTPServer {
 		return func(ctx *web.Context) {
 			start := time.Now()
 			next(ctx)
-			logger.L().LogWithContextAndRequestID(ctx.Req.Context(), "stat-service", "http", "INFO", "请求: %s %s %d %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start))
+			logger.Log().Info("http: 请求: %s %s %d %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start))
 		}
 	}
 	server := web.NewHTTPServer(
-		web.ServerWithLogger(logger.L().Error),
+		web.ServerWithLogger(logger.Log().Error),
 		web.ServerWithMiddlewares(
 			requestIDMiddleware,
 			customRecover,

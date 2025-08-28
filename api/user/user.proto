@@ -4,6 +4,20 @@ package user;
 
 option go_package = "blog-system/services/user/proto";
 
+// protoc --go_out=../../../. --go-grpc_out=../../../. user.proto
+
+// 用户信息
+message User {
+  int64 id = 1;
+  string username = 2;
+  string email = 3;
+  string role = 4;
+  string avatar = 5;
+  int32 status = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
 // 用户服务
 service UserService {
 
@@ -24,18 +38,6 @@ service UserService {
   // 更新用户状态
   rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UpdateUserStatusResponse);
 
-}
-
-// 用户信息
-message User {
-  int64 id = 1;
-  string username = 2;
-  string email = 3;
-  string role = 4;
-  string avatar = 5;
-  int32 status = 6;
-  string created_at = 7;
-  string updated_at = 8;
 }
 
 // 注册请求
