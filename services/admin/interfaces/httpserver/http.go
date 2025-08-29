@@ -207,13 +207,12 @@ func (s *HTTPServer) deleteUser(ctx *web.Context) {
 }
 
 func (s *HTTPServer) listArticles(ctx *web.Context) {
-	page, pageSize := parsePagination(ctx)
-	list, total, err := s.app.ListArticles(ctx.Req.Context(), page, pageSize)
+	list, total, err := s.app.ListArticles(ctx.Req.Context())
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
 	}
-	_ = ctx.RespJSONOK(dto.Success(dto.PageResponse[*domain.Article]{List: list, Total: total, Page: page, PageSize: pageSize}))
+	_ = ctx.RespJSONOK(dto.Success(dto.PageResponse[*domain.Article]{List: list, Total: total, Page: 1, PageSize: len(list)}))
 }
 
 func (s *HTTPServer) createArticle(ctx *web.Context) {
@@ -287,13 +286,12 @@ func (s *HTTPServer) deleteArticle(ctx *web.Context) {
 }
 
 func (s *HTTPServer) listCategories(ctx *web.Context) {
-	page, pageSize := parsePagination(ctx)
-	list, total, err := s.app.ListCategories(ctx.Req.Context(), page, pageSize)
+	list, total, err := s.app.ListCategories(ctx.Req.Context())
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
 	}
-	_ = ctx.RespJSONOK(dto.Success(dto.PageResponse[*domain.Category]{List: list, Total: total, Page: page, PageSize: pageSize}))
+	_ = ctx.RespJSONOK(dto.Success(dto.PageResponse[*domain.Category]{List: list, Total: total, Page: 1, PageSize: len(list)}))
 }
 
 func (s *HTTPServer) createCategory(ctx *web.Context) {
@@ -352,8 +350,7 @@ func (s *HTTPServer) deleteCategory(ctx *web.Context) {
 
 // categoryTree 构建分类（单层，按 Sort 升序）
 func (s *HTTPServer) categoryTree(ctx *web.Context) {
-	// 拉取足够多的数据用于构建列表
-	list, _, err := s.app.ListCategories(ctx.Req.Context(), 1, 10000)
+	list, total, err := s.app.ListCategories(ctx.Req.Context())
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
@@ -364,12 +361,11 @@ func (s *HTTPServer) categoryTree(ctx *web.Context) {
 		Slug string `json:"slug"`
 		Sort int    `json:"sort"`
 	}
-	// 单层分类：直接返回扁平列表
 	out := make([]Node, 0, len(list))
 	for _, c := range list {
 		out = append(out, Node{ID: c.ID, Name: c.Name, Slug: c.Slug, Sort: c.Sort})
 	}
-	_ = ctx.RespJSONOK(dto.Success(out))
+	_ = ctx.RespJSONOK(dto.Success(dto.PageResponse[Node]{List: out, Total: total, Page: 1, PageSize: len(out)}))
 }
 
 // parsePagination 统一分页解析

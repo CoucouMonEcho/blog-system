@@ -7,12 +7,12 @@ import (
 	"blog-system/services/content/application"
 	"blog-system/services/content/domain"
 	"net/http"
-	"runtime/debug"
 	"strconv"
 	"time"
 
 	"github.com/CoucouMonEcho/go-framework/web"
-	webotel "github.com/CoucouMonEcho/go-framework/web/middlewares/opentelemetry"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/accesslog"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/errhandle"
 	webprom "github.com/CoucouMonEcho/go-framework/web/middlewares/prometheus"
 )
 
@@ -30,34 +30,13 @@ func NewHTTPServer(contentService *application.ContentAppService) *HTTPServer {
 		}
 	}
 
-	customRecover := func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			defer func() {
-				if r := recover(); r != nil {
-					logger.Log().Error("recover: panic=%v method=%s path=%s remote=%s\nheaders=%v\nstack=%s", r, ctx.Req.Method, ctx.Req.URL.Path, ctx.Req.RemoteAddr, ctx.Req.Header, string(debug.Stack()))
-					_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, "内部服务错误"))
-				}
-			}()
-			next(ctx)
-		}
-	}
-
-	requestLogger := func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			start := time.Now()
-			next(ctx)
-			logger.Log().Info("http: 请求: %s %s %d %s %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
-		}
-	}
-
 	server := web.NewHTTPServer(
 		web.ServerWithLogger(logger.Log().Error),
 		web.ServerWithMiddlewares(
 			requestIDMiddleware,
-			customRecover,
-			requestLogger,
-			webotel.MiddlewareBuilder{}.Build(),
-			webprom.MiddlewareBuilder{Namespace: "blog", Subsystem: "content", Name: "http", Help: "content http latency"}.Build(),
+			errhandle.NewMiddlewareBuilder().RegisterError(http.StatusInternalServerError, []byte("内部服务错误")).Build(),
+			accesslog.NewMiddlewareBuilder().LogFunc(func(log string) { logger.Log().Info(log) }).Build(),
+			webprom.MiddlewareBuilder{Namespace: "blog-system", Subsystem: "content", Name: "http", Help: "content http latency"}.Build(),
 		),
 	)
 
@@ -75,10 +54,8 @@ func (s *HTTPServer) registerRoutes() {
 	s.server.Get("/api/article/:article_id", s.GetArticle)
 	s.server.Get("/api/article/list", s.ListArticleSummaries)
 	s.server.Get("/api/article/search", s.SearchArticles)
-	s.server.Get("/api/category/tree", s.ListCategoryTree)
+	s.server.Get("/api/category/list", s.ListCategories)
 }
-
-// Create/Update/Delete 移至 admin 模块
 
 func (s *HTTPServer) GetArticle(ctx *web.Context) {
 	id, err := ctx.PathValue("article_id").AsInt64()
@@ -93,12 +70,6 @@ func (s *HTTPServer) GetArticle(ctx *web.Context) {
 	}
 	_ = ctx.RespJSONOK(dto.Success(art))
 }
-
-// UpdateArticle 更新文章
-// UpdateArticle 移至 admin 模块
-
-// DeleteArticle 删除文章
-// DeleteArticle 移至 admin 模块
 
 // ListArticleSummaries 文章列表（ID+Title）
 func (s *HTTPServer) ListArticleSummaries(ctx *web.Context) {
@@ -129,14 +100,14 @@ func (s *HTTPServer) SearchArticles(ctx *web.Context) {
 	_ = ctx.RespJSONOK(dto.Success(dto.PageResponse[*domain.ArticleSummary]{List: list, Total: total, Page: page, PageSize: pageSize}))
 }
 
-// ListCategoryTree 返回树状三级分类
-func (s *HTTPServer) ListCategoryTree(ctx *web.Context) {
-	tree, err := s.contentService.GetCategoryTree(ctx.Req.Context())
+// ListCategories 返回分类全量列表
+func (s *HTTPServer) ListCategories(ctx *web.Context) {
+	list, err := s.contentService.ListAllCategories(ctx.Req.Context())
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
 	}
-	_ = ctx.RespJSONOK(dto.Success(tree))
+	_ = ctx.RespJSONOK(dto.Success(list))
 }
 
 // parsePagination 统一分页解析

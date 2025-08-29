@@ -26,7 +26,7 @@ func main() {
 	logger.Init(&cfg.Log)
 	db, err := infrastructure.InitDB(cfg)
 	if err != nil {
-		logger.Log().Error("database: 数据库连接失败: %v", err)
+		logger.Log().Error("main: 数据库连接失败: %v", err)
 	}
 	repo := persistence.NewStatRepository(db)
 	http := httpapi.NewHTTPServer()

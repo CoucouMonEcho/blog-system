@@ -37,19 +37,19 @@ func NewContentClient(cfg *conf.AppConfig) *ContentClient {
 }
 
 func (c *ContentClient) CreateArticle(ctx context.Context, a *domain.Article) error {
-	_, err := c.cli.CreateArticle(ctx, &cpb.Article{Title: a.Title, Slug: a.Slug, Content: a.Content, Summary: a.Summary, AuthorId: a.AuthorID, CategoryId: a.CategoryID, Status: int32(a.Status), IsTop: a.IsTop, IsRecommend: a.IsRecommend})
+	_, err := c.cli.CreateArticle(ctx, &cpb.Article{Title: a.Title, Slug: a.Slug, Content: a.Content, Summary: a.Summary, Cover: a.Cover, AuthorId: a.AuthorID, CategoryId: a.CategoryID, Status: int32(a.Status), IsTop: a.IsTop, IsRecommend: a.IsRecommend})
 	return err
 }
 func (c *ContentClient) UpdateArticle(ctx context.Context, a *domain.Article) error {
-	_, err := c.cli.UpdateArticle(ctx, &cpb.Article{Id: a.ID, Title: a.Title, Slug: a.Slug, Content: a.Content, Summary: a.Summary, CategoryId: a.CategoryID, Status: int32(a.Status), IsTop: a.IsTop, IsRecommend: a.IsRecommend})
+	_, err := c.cli.UpdateArticle(ctx, &cpb.Article{Id: a.ID, Title: a.Title, Slug: a.Slug, Content: a.Content, Summary: a.Summary, Cover: a.Cover, CategoryId: a.CategoryID, Status: int32(a.Status), IsTop: a.IsTop, IsRecommend: a.IsRecommend})
 	return err
 }
 func (c *ContentClient) DeleteArticle(ctx context.Context, id int64) error {
 	_, err := c.cli.DeleteArticle(ctx, &cpb.Id{Id: id})
 	return err
 }
-func (c *ContentClient) ListArticles(ctx context.Context, page, pageSize int) ([]*domain.Article, int64, error) {
-	resp, err := c.cli.ListArticles(ctx, &cpb.Page{Page: int32(page), PageSize: int32(pageSize)})
+func (c *ContentClient) ListArticles(ctx context.Context) ([]*domain.Article, int64, error) {
+	resp, err := c.cli.ListArticles(ctx, &cpb.Empty{})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -79,8 +79,8 @@ func (c *ContentClient) DeleteCategory(ctx context.Context, id int64) error {
 	_, err := c.cli.DeleteCategory(ctx, &cpb.Id{Id: id})
 	return err
 }
-func (c *ContentClient) ListCategories(ctx context.Context, page, pageSize int) ([]*domain.Category, int64, error) {
-	resp, err := c.cli.ListCategories(ctx, &cpb.Page{Page: int32(page), PageSize: int32(pageSize)})
+func (c *ContentClient) ListCategories(ctx context.Context) ([]*domain.Category, int64, error) {
+	resp, err := c.cli.ListCategories(ctx, &cpb.Empty{})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -95,6 +95,38 @@ func (c *ContentClient) ListCategories(ctx context.Context, page, pageSize int) 
 }
 func (c *ContentClient) CountCategories(ctx context.Context) (int64, error) {
 	resp, err := c.cli.CountCategories(ctx, &cpb.Empty{})
+	if err != nil {
+		return 0, err
+	}
+	return resp.Value, nil
+}
+
+// 标签管理
+func (c *ContentClient) CreateTag(ctx context.Context, t *domain.Tag) error {
+	_, err := c.cli.CreateTag(ctx, &cpb.Tag{Name: t.Name, Slug: t.Slug, Color: t.Color})
+	return err
+}
+func (c *ContentClient) UpdateTag(ctx context.Context, t *domain.Tag) error {
+	_, err := c.cli.UpdateTag(ctx, &cpb.Tag{Id: t.ID, Name: t.Name, Slug: t.Slug, Color: t.Color})
+	return err
+}
+func (c *ContentClient) DeleteTag(ctx context.Context, id int64) error {
+	_, err := c.cli.DeleteTag(ctx, &cpb.Id{Id: id})
+	return err
+}
+func (c *ContentClient) ListTags(ctx context.Context) ([]*domain.Tag, error) {
+	resp, err := c.cli.ListTags(ctx, &cpb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*domain.Tag, 0, len(resp.Tags))
+	for _, t := range resp.Tags {
+		out = append(out, &domain.Tag{ID: t.Id, Name: t.Name, Slug: t.Slug, Color: t.Color})
+	}
+	return out, nil
+}
+func (c *ContentClient) CountTags(ctx context.Context) (int64, error) {
+	resp, err := c.cli.CountTags(ctx, &cpb.Empty{})
 	if err != nil {
 		return 0, err
 	}

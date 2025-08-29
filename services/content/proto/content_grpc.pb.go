@@ -29,22 +29,37 @@ const (
 	ContentAdminService_DeleteCategory_FullMethodName  = "/content.ContentAdminService/DeleteCategory"
 	ContentAdminService_ListCategories_FullMethodName  = "/content.ContentAdminService/ListCategories"
 	ContentAdminService_CountCategories_FullMethodName = "/content.ContentAdminService/CountCategories"
+	ContentAdminService_CreateTag_FullMethodName       = "/content.ContentAdminService/CreateTag"
+	ContentAdminService_UpdateTag_FullMethodName       = "/content.ContentAdminService/UpdateTag"
+	ContentAdminService_DeleteTag_FullMethodName       = "/content.ContentAdminService/DeleteTag"
+	ContentAdminService_ListTags_FullMethodName        = "/content.ContentAdminService/ListTags"
+	ContentAdminService_CountTags_FullMethodName       = "/content.ContentAdminService/CountTags"
 )
 
 // ContentAdminServiceClient is the client API for ContentAdminService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// 内容服务
 type ContentAdminServiceClient interface {
+	// 文章
 	CreateArticle(ctx context.Context, in *Article, opts ...grpc.CallOption) (*Empty, error)
 	UpdateArticle(ctx context.Context, in *Article, opts ...grpc.CallOption) (*Empty, error)
 	DeleteArticle(ctx context.Context, in *Id, opts ...grpc.CallOption) (*Empty, error)
-	ListArticles(ctx context.Context, in *Page, opts ...grpc.CallOption) (*ArticleListResponse, error)
+	ListArticles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ArticleListResponse, error)
 	CountArticles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Count, error)
+	// 分类（全量）
 	CreateCategory(ctx context.Context, in *Category, opts ...grpc.CallOption) (*Empty, error)
 	UpdateCategory(ctx context.Context, in *Category, opts ...grpc.CallOption) (*Empty, error)
 	DeleteCategory(ctx context.Context, in *Id, opts ...grpc.CallOption) (*Empty, error)
-	ListCategories(ctx context.Context, in *Page, opts ...grpc.CallOption) (*CategoryListResponse, error)
+	ListCategories(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CategoryListResponse, error)
 	CountCategories(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Count, error)
+	// 标签（全量）
+	CreateTag(ctx context.Context, in *Tag, opts ...grpc.CallOption) (*Empty, error)
+	UpdateTag(ctx context.Context, in *Tag, opts ...grpc.CallOption) (*Empty, error)
+	DeleteTag(ctx context.Context, in *Id, opts ...grpc.CallOption) (*Empty, error)
+	ListTags(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TagListResponse, error)
+	CountTags(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Count, error)
 }
 
 type contentAdminServiceClient struct {
@@ -85,7 +100,7 @@ func (c *contentAdminServiceClient) DeleteArticle(ctx context.Context, in *Id, o
 	return out, nil
 }
 
-func (c *contentAdminServiceClient) ListArticles(ctx context.Context, in *Page, opts ...grpc.CallOption) (*ArticleListResponse, error) {
+func (c *contentAdminServiceClient) ListArticles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ArticleListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ArticleListResponse)
 	err := c.cc.Invoke(ctx, ContentAdminService_ListArticles_FullMethodName, in, out, cOpts...)
@@ -135,7 +150,7 @@ func (c *contentAdminServiceClient) DeleteCategory(ctx context.Context, in *Id, 
 	return out, nil
 }
 
-func (c *contentAdminServiceClient) ListCategories(ctx context.Context, in *Page, opts ...grpc.CallOption) (*CategoryListResponse, error) {
+func (c *contentAdminServiceClient) ListCategories(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CategoryListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CategoryListResponse)
 	err := c.cc.Invoke(ctx, ContentAdminService_ListCategories_FullMethodName, in, out, cOpts...)
@@ -155,20 +170,80 @@ func (c *contentAdminServiceClient) CountCategories(ctx context.Context, in *Emp
 	return out, nil
 }
 
+func (c *contentAdminServiceClient) CreateTag(ctx context.Context, in *Tag, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, ContentAdminService_CreateTag_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentAdminServiceClient) UpdateTag(ctx context.Context, in *Tag, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, ContentAdminService_UpdateTag_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentAdminServiceClient) DeleteTag(ctx context.Context, in *Id, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, ContentAdminService_DeleteTag_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentAdminServiceClient) ListTags(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TagListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TagListResponse)
+	err := c.cc.Invoke(ctx, ContentAdminService_ListTags_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *contentAdminServiceClient) CountTags(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Count, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Count)
+	err := c.cc.Invoke(ctx, ContentAdminService_CountTags_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ContentAdminServiceServer is the server API for ContentAdminService service.
 // All implementations must embed UnimplementedContentAdminServiceServer
 // for forward compatibility.
+//
+// 内容服务
 type ContentAdminServiceServer interface {
+	// 文章
 	CreateArticle(context.Context, *Article) (*Empty, error)
 	UpdateArticle(context.Context, *Article) (*Empty, error)
 	DeleteArticle(context.Context, *Id) (*Empty, error)
-	ListArticles(context.Context, *Page) (*ArticleListResponse, error)
+	ListArticles(context.Context, *Empty) (*ArticleListResponse, error)
 	CountArticles(context.Context, *Empty) (*Count, error)
+	// 分类（全量）
 	CreateCategory(context.Context, *Category) (*Empty, error)
 	UpdateCategory(context.Context, *Category) (*Empty, error)
 	DeleteCategory(context.Context, *Id) (*Empty, error)
-	ListCategories(context.Context, *Page) (*CategoryListResponse, error)
+	ListCategories(context.Context, *Empty) (*CategoryListResponse, error)
 	CountCategories(context.Context, *Empty) (*Count, error)
+	// 标签（全量）
+	CreateTag(context.Context, *Tag) (*Empty, error)
+	UpdateTag(context.Context, *Tag) (*Empty, error)
+	DeleteTag(context.Context, *Id) (*Empty, error)
+	ListTags(context.Context, *Empty) (*TagListResponse, error)
+	CountTags(context.Context, *Empty) (*Count, error)
 	mustEmbedUnimplementedContentAdminServiceServer()
 }
 
@@ -188,7 +263,7 @@ func (UnimplementedContentAdminServiceServer) UpdateArticle(context.Context, *Ar
 func (UnimplementedContentAdminServiceServer) DeleteArticle(context.Context, *Id) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteArticle not implemented")
 }
-func (UnimplementedContentAdminServiceServer) ListArticles(context.Context, *Page) (*ArticleListResponse, error) {
+func (UnimplementedContentAdminServiceServer) ListArticles(context.Context, *Empty) (*ArticleListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListArticles not implemented")
 }
 func (UnimplementedContentAdminServiceServer) CountArticles(context.Context, *Empty) (*Count, error) {
@@ -203,11 +278,26 @@ func (UnimplementedContentAdminServiceServer) UpdateCategory(context.Context, *C
 func (UnimplementedContentAdminServiceServer) DeleteCategory(context.Context, *Id) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteCategory not implemented")
 }
-func (UnimplementedContentAdminServiceServer) ListCategories(context.Context, *Page) (*CategoryListResponse, error) {
+func (UnimplementedContentAdminServiceServer) ListCategories(context.Context, *Empty) (*CategoryListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListCategories not implemented")
 }
 func (UnimplementedContentAdminServiceServer) CountCategories(context.Context, *Empty) (*Count, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CountCategories not implemented")
+}
+func (UnimplementedContentAdminServiceServer) CreateTag(context.Context, *Tag) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateTag not implemented")
+}
+func (UnimplementedContentAdminServiceServer) UpdateTag(context.Context, *Tag) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateTag not implemented")
+}
+func (UnimplementedContentAdminServiceServer) DeleteTag(context.Context, *Id) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteTag not implemented")
+}
+func (UnimplementedContentAdminServiceServer) ListTags(context.Context, *Empty) (*TagListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListTags not implemented")
+}
+func (UnimplementedContentAdminServiceServer) CountTags(context.Context, *Empty) (*Count, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CountTags not implemented")
 }
 func (UnimplementedContentAdminServiceServer) mustEmbedUnimplementedContentAdminServiceServer() {}
 func (UnimplementedContentAdminServiceServer) testEmbeddedByValue()                             {}
@@ -285,7 +375,7 @@ func _ContentAdminService_DeleteArticle_Handler(srv interface{}, ctx context.Con
 }
 
 func _ContentAdminService_ListArticles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Page)
+	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -297,7 +387,7 @@ func _ContentAdminService_ListArticles_Handler(srv interface{}, ctx context.Cont
 		FullMethod: ContentAdminService_ListArticles_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ContentAdminServiceServer).ListArticles(ctx, req.(*Page))
+		return srv.(ContentAdminServiceServer).ListArticles(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -375,7 +465,7 @@ func _ContentAdminService_DeleteCategory_Handler(srv interface{}, ctx context.Co
 }
 
 func _ContentAdminService_ListCategories_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Page)
+	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -387,7 +477,7 @@ func _ContentAdminService_ListCategories_Handler(srv interface{}, ctx context.Co
 		FullMethod: ContentAdminService_ListCategories_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ContentAdminServiceServer).ListCategories(ctx, req.(*Page))
+		return srv.(ContentAdminServiceServer).ListCategories(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -406,6 +496,96 @@ func _ContentAdminService_CountCategories_Handler(srv interface{}, ctx context.C
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ContentAdminServiceServer).CountCategories(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentAdminService_CreateTag_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Tag)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentAdminServiceServer).CreateTag(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentAdminService_CreateTag_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentAdminServiceServer).CreateTag(ctx, req.(*Tag))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentAdminService_UpdateTag_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Tag)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentAdminServiceServer).UpdateTag(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentAdminService_UpdateTag_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentAdminServiceServer).UpdateTag(ctx, req.(*Tag))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentAdminService_DeleteTag_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Id)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentAdminServiceServer).DeleteTag(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentAdminService_DeleteTag_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentAdminServiceServer).DeleteTag(ctx, req.(*Id))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentAdminService_ListTags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentAdminServiceServer).ListTags(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentAdminService_ListTags_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentAdminServiceServer).ListTags(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContentAdminService_CountTags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentAdminServiceServer).CountTags(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentAdminService_CountTags_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentAdminServiceServer).CountTags(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -456,6 +636,26 @@ var ContentAdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CountCategories",
 			Handler:    _ContentAdminService_CountCategories_Handler,
+		},
+		{
+			MethodName: "CreateTag",
+			Handler:    _ContentAdminService_CreateTag_Handler,
+		},
+		{
+			MethodName: "UpdateTag",
+			Handler:    _ContentAdminService_UpdateTag_Handler,
+		},
+		{
+			MethodName: "DeleteTag",
+			Handler:    _ContentAdminService_DeleteTag_Handler,
+		},
+		{
+			MethodName: "ListTags",
+			Handler:    _ContentAdminService_ListTags_Handler,
+		},
+		{
+			MethodName: "CountTags",
+			Handler:    _ContentAdminService_CountTags_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -11,6 +11,7 @@ type Article struct {
 	Slug        string     `json:"slug"`
 	Content     string     `json:"content"`
 	Summary     string     `json:"summary"`
+	Cover       string     `json:"cover"`
 	AuthorID    int64      `json:"author_id"`
 	CategoryID  int64      `json:"category_id"`
 	Status      int        `json:"status"`
@@ -23,7 +24,6 @@ type Article struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-// TableName 显式指定表名，避免命名策略差异
 func (Article) TableName() string { return "blog_article" }
 
 // ArticleSummary 文章摘要
@@ -32,7 +32,7 @@ type ArticleSummary struct {
 	Title string `json:"title"`
 }
 
-// Category 分类领域模型
+// Category 分类领域模型（单级）
 type Category struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
@@ -44,15 +44,32 @@ type Category struct {
 
 func (Category) TableName() string { return "blog_category" }
 
-// CategoryNode 分类树节点
-type CategoryNode struct {
-	ID       int64           `json:"id"`
-	Name     string          `json:"name"`
-	Slug     string          `json:"slug"`
-	Children []*CategoryNode `json:"children,omitempty"`
+// Tag 标签领域模型
+type Tag struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	Slug      string    `json:"slug"`
+	Color     string    `json:"color"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
+func (Tag) TableName() string { return "blog_tag" }
+
+// ArticleTag 文章-标签 关联（多对多）
+type ArticleTag struct {
+	ID        int64     `json:"id"`
+	ArticleID int64     `json:"article_id"`
+	TagID     int64     `json:"tag_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (ArticleTag) TableName() string { return "blog_article_tags" }
+
+// ContentRepository 聚合仓储接口
 type ContentRepository interface {
+
+	// Article 文章
 	CreateArticle(ctx context.Context, a *Article) error
 	GetArticleByID(ctx context.Context, id int64) (*Article, error)
 	ListArticles(ctx context.Context, page, pageSize int) ([]*Article, int64, error)
@@ -62,11 +79,20 @@ type ContentRepository interface {
 	ListArticleSummaries(ctx context.Context, page, pageSize int) ([]*ArticleSummary, int64, error)
 	SearchArticleSummaries(ctx context.Context, keyword string, page, pageSize int) ([]*ArticleSummary, int64, error)
 
-	// Category
+	// Category 分类
 	ListAllCategories(ctx context.Context) ([]*Category, error)
 	ListCategories(ctx context.Context, page, pageSize int) ([]*Category, int64, error)
 	CountCategories(ctx context.Context) (int64, error)
 	CreateCategory(ctx context.Context, c *Category) error
 	UpdateCategory(ctx context.Context, c *Category) error
 	DeleteCategory(ctx context.Context, id int64) error
+
+	// Tag 标签
+	CreateTag(ctx context.Context, t *Tag) error
+	UpdateTag(ctx context.Context, t *Tag) error
+	DeleteTag(ctx context.Context, id int64) error
+	ListTags(ctx context.Context, page, pageSize int) ([]*Tag, int64, error)
+	CountTags(ctx context.Context) (int64, error)
+	ListArticleTags(ctx context.Context, articleID int64) ([]*Tag, error)
+	UpdateArticleTags(ctx context.Context, articleID int64, tagIDs []int64) error
 }

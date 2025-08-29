@@ -9,10 +9,12 @@ import (
 	"time"
 
 	conf "blog-system/common/pkg/config"
+	"blog-system/common/pkg/logger"
 	"blog-system/services/gateway/domain"
 
+	"strconv"
+
 	"github.com/CoucouMonEcho/go-framework/cache"
-	"github.com/CoucouMonEcho/go-framework/micro/rate_limit"
 	"github.com/CoucouMonEcho/go-framework/micro/registry"
 	regEtcd "github.com/CoucouMonEcho/go-framework/micro/registry/etcd"
 	redis "github.com/redis/go-redis/v9"
@@ -82,28 +84,25 @@ func (r *RouteRepository) GetRouteByPath(path string) *domain.Route {
 	return nil
 }
 
-// ServiceDiscovery 服务发现实现 - 基于 go-framework registry
+// ServiceDiscovery 服务发现实现
 type ServiceDiscovery struct {
 	registry registry.Registry
 }
 
 // NewServiceDiscovery 创建服务发现
 func NewServiceDiscovery() *ServiceDiscovery {
-	// 读取统一配置
 	gcfg, _ := conf.Load("gateway")
-
 	cli, _ := clientv3.New(clientv3.Config{
 		Endpoints:   gcfg.Registry.Endpoints,
 		DialTimeout: 3 * time.Second,
 	})
 	r, _ := regEtcd.NewRegistry(cli)
-
 	return &ServiceDiscovery{
 		registry: r,
 	}
 }
 
-// resolveTarget 解析 service://name 到实际 http://host:port
+// resolveTarget 解析 service://name -> http://host:port
 func (s *ServiceDiscovery) resolveTarget(target string) (string, bool) {
 	if s == nil {
 		return target, true
@@ -117,9 +116,10 @@ func (s *ServiceDiscovery) resolveTarget(target string) (string, bool) {
 	defer cancel()
 	srvs, err := s.registry.ListServices(ctx, serviceName)
 	if err != nil || len(srvs) == 0 {
+		logger.Log().Error("infrastructure: 查询节点失败: service=%s err=%v", serviceName, err)
 		return "", false
 	}
-	// 简单返回列表第一个地址
+	//TODO 简单返回列表第一个地址 可优化为集群分发
 	return srvs[0].Address, true
 }
 
@@ -137,16 +137,19 @@ func (s *ServiceDiscovery) GetServiceHealth(target string) bool {
 	client := &http.Client{Timeout: 5 * time.Second}
 	u, err := url.Parse(resolved)
 	if err != nil {
+		logger.Log().Error("infrastructure: 解析地址异常: resolved=%s err=%v", resolved, err)
 		return false
 	}
 	// 访问 /health 更准确
 	healthURL := u.ResolveReference(&url.URL{Path: "/health"})
 	req, err := http.NewRequest("GET", healthURL.String(), nil)
 	if err != nil {
+		logger.Log().Error("infrastructure: 健康检查失败: url=%s err=%v", healthURL.String(), err)
 		return false
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		logger.Log().Error("infrastructure: 健康检查请求失败: url=%s err=%v", healthURL.String(), err)
 		return false
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -163,44 +166,63 @@ func (s *ServiceDiscovery) GetServiceLatency(target string) time.Duration {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Head(resolved)
 	if err != nil {
+		logger.Log().Error("infrastructure: 延迟探测失败: resolved=%s err=%v", resolved, err)
 		return 0
 	}
 	defer func() { _ = resp.Body.Close() }()
 	return time.Since(start)
 }
 
-// RateLimiter 使用go-framework的限流器
+// RateLimiter 使用Redis滑动窗口限流
 type RateLimiter struct {
-	limiter *rate_limit.RedisSlideWindowLimiter
-	config  conf.RateLimitConfig
+	redisClient *redis.ClusterClient
+	config      conf.RateLimitConfig
 }
 
-// NewRateLimiter 创建限流器 - 强制使用go-framework
+// NewRateLimiter 创建限流器 - 使用 Redis 实现
 func NewRateLimiter(_ cache.Cache, config conf.RateLimitConfig) *RateLimiter {
-	// 创建一个Redis客户端用于限流器
+	gcfg, _ := conf.Load("gateway")
 	redisClient := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: []string{"127.0.0.1:7001", "127.0.0.1:7002", "127.0.0.1:7003"},
+		Addrs:        gcfg.Redis.Cluster.Addrs,
+		Password:     gcfg.Redis.Cluster.Password,
+		PoolSize:     gcfg.Redis.Cluster.PoolSize,
+		MinIdleConns: gcfg.Redis.Cluster.MinIdleConns,
+		MaxRetries:   gcfg.Redis.Cluster.MaxRetries,
+		DialTimeout:  parseDuration(gcfg.Redis.Cluster.DialTimeout),
+		ReadTimeout:  parseDuration(gcfg.Redis.Cluster.ReadTimeout),
+		WriteTimeout: parseDuration(gcfg.Redis.Cluster.WriteTimeout),
 	})
-
-	// 使用go-framework的Redis滑动窗口限流器
-	limiter := rate_limit.NewRedisSlideWindowLimiter(
-		redisClient,
-		"gateway",
-		time.Second,
-		config.RequestsPerSecond,
-	)
-
-	return &RateLimiter{
-		limiter: limiter,
-		config:  config,
-	}
+	return &RateLimiter{redisClient: redisClient, config: config}
 }
 
-// Allow 检查是否允许请求 - 使用go-framework的限流器
+// Allow 检查是否允许请求 - 基于1秒滑动窗口
 func (r *RateLimiter) Allow(client string) bool {
 	if !r.config.Enabled {
 		return true
 	}
+	if client == "" {
+		client = "anonymous"
+	}
+	ctx := context.Background()
+	key := "rl:" + client
+	// 当前时间（毫秒）
+	now := time.Now().UnixNano() / int64(time.Millisecond)
+	windowStart := now - 1000 // 1秒窗口
+	// 清理窗口外的记录
+	_ = r.redisClient.ZRemRangeByScore(ctx, key, "-inf", strconv.FormatInt(windowStart, 10)).Err()
+	// 统计当前窗口内的请求数
+	cnt, err := r.redisClient.ZCard(ctx, key).Result()
+	if err != nil {
+		logger.Log().Warn("ratelimit: 统计失败: key=%s err=%v", key, err)
+		return true // 容错：出错则放行
+	}
+	limit := int64(r.config.RequestsPerSecond + r.config.Burst)
+	if cnt >= limit {
+		return false
+	}
+	// 记录此次请求（score 与 member 都用时间戳保证去重）
+	_ = r.redisClient.ZAdd(ctx, key, redis.Z{Score: float64(now), Member: now}).Err()
+	_ = r.redisClient.Expire(ctx, key, 2*time.Second).Err()
 	return true
 }
 

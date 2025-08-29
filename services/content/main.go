@@ -28,7 +28,7 @@ func main() {
 	logger.Init(&cfg.Log)
 	db, err := infra.InitDB(cfg)
 	if err != nil {
-		logger.Log().Error("database: 数据库连接失败: %v", err)
+		logger.Log().Error("main: 数据库连接失败: %v", err)
 		return
 	}
 	cache, _ := infra.InitCache(cfg)
@@ -51,7 +51,7 @@ func main() {
 
 	// 注册到注册中心
 	if err := infra.RegisterService(cfg); err != nil {
-		logger.Log().Error("registry: 注册到注册中心失败: %v", err)
+		logger.Log().Error("main: 注册到注册中心失败: %v", err)
 	}
 	addr := ":" + strconv.Itoa(cfg.App.Port)
 	go func() { _ = grpcSrv.Start(":9002") }()

@@ -34,13 +34,12 @@ func InitDB(cfg *conf.AppConfig) (*orm.DB, error) {
 		cfg.Database.Port,
 		cfg.Database.Name,
 	)
-	ql := ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
-		logger.Log().Debug("orm: sql=%s args=%v", sql, args)
-	}).Build()
 	return orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(
 		ormotel.NewMiddlewareBuilder(nil).Build(),
-		ormprom.NewMiddlewareBuilder("blog", "content", "orm", "content orm latency").Build(),
-		ql,
+		ormprom.NewMiddlewareBuilder("blog-system", "content", "orm", "content orm latency").Build(),
+		ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
+			logger.Log().Debug("infrastructure: sql=%s args=%v", sql, args)
+		}).Build(),
 	))
 }
 

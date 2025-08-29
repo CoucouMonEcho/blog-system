@@ -24,16 +24,12 @@ func InitDB(cfg *conf.AppConfig) (*orm.DB, error) {
 		cfg.Database.Port,
 		cfg.Database.Name,
 	)
-
-	// 恢复中间件配置，使用业务 logger
-	ql := ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
-		logger.Log().Debug("orm: sql=%s args=%v", sql, args)
-	}).Build()
-
 	db, err := orm.Open(cfg.Database.Driver, dsn, orm.DBWithMiddlewares(
 		ormotel.NewMiddlewareBuilder(nil).Build(),
 		ormprom.NewMiddlewareBuilder("blog", "user", "orm", "user orm latency").Build(),
-		ql,
+		ormql.NewMiddlewareBuilder().LogFunc(func(sql string, args []any) {
+			logger.Log().Debug("infrastructure: sql=%s args=%v", sql, args)
+		}).Build(),
 	))
 	if err != nil {
 		return nil, err
@@ -59,7 +55,6 @@ func InitCache(cfg *conf.AppConfig) (cache.Cache, error) {
 	if len(cfg.Redis.Cluster.Addrs) == 0 {
 		return nil, fmt.Errorf("未配置Redis Cluster地址")
 	}
-
 	// 使用Redis Cluster配置
 	client := redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs:        cfg.Redis.Cluster.Addrs,

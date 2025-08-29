@@ -33,25 +33,17 @@ func NewUserService(userRepo domain.UserRepository, cache cache.Cache) *UserAppS
 
 // Register 用户注册
 func (s *UserAppService) Register(ctx context.Context, username, email, password string) (*domain.User, error) {
-	// 检查用户名是否已存在
 	if _, err := s.userRepo.FindByUsername(ctx, username); err == nil {
-		logger.Log().Warn("application: 注册失败: 用户名已存在, username=%s", username)
 		return nil, errors.New("用户名已存在")
 	}
-
-	// 检查邮箱是否已存在
 	if _, err := s.userRepo.FindByEmail(ctx, email); err == nil {
-		logger.Log().Warn("application: 注册失败: 邮箱已存在, email=%s", email)
 		return nil, errors.New("邮箱已存在")
 	}
-
-	// 加密密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		logger.Log().Error("application: 密码加密失败: %v", err)
 		return nil, err
 	}
-
 	now := time.Now()
 	user := &domain.User{
 		Username:  username,
@@ -62,12 +54,10 @@ func (s *UserAppService) Register(ctx context.Context, username, email, password
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err = s.userRepo.Create(ctx, user); err != nil {
 		logger.Log().Error("application: 用户创建失败: %v", err)
 		return nil, err
 	}
-
 	logger.Log().Info("application: 注册成功: username=%s", user.Username)
 	return user, nil
 }
@@ -85,24 +75,31 @@ func (s *UserAppService) Login(ctx context.Context, username, password string) (
 	}
 	// 检查用户状态
 	if user.Status != 0 {
-		logger.Log().Warn("application: 登录失败: 用户被禁用, username=%s", username)
 		return nil, "", errors.New("用户已被禁用")
 	}
 	// 验证密码
 	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		logger.Log().Warn("application: 登录失败: 密码错误, username=%s", username)
+		logger.Log().Warn("application: 登录失败: 密码错误, username=%s, err=%v", username, err)
 		return nil, "", errors.New("密码错误")
 	}
 	// 生成 JWT 令牌
 	token, err := util.GenerateToken(user.ID, user.Role)
-	logger.Log().Info("application: 登录成功: id=%d username=%s token=%s", user.ID, user.Username, token)
+	if err != nil {
+		logger.Log().Error("application: 生成token失败: id=%d username=%s err=%v", user.ID, user.Username, err)
+		return nil, "", err
+	}
+	// 将 token 写入缓存，值为用户JSON
+	if userData, er := json.Marshal(user); er == nil {
+		_ = s.cache.Set(ctx, "token_"+token, string(userData), 24*time.Hour)
+	}
+	logger.Log().Info("application: 登录成功: id=%d username=%s", user.ID, user.Username)
 	return user, token, nil
 }
 
 // GetUserInfo 获取用户信息
 func (s *UserAppService) GetUserInfo(ctx context.Context, id int64) (*domain.User, error) {
 	// 先从缓存获取
-	cacheKey := "user:" + strconv.FormatInt(id, 10)
+	cacheKey := "user_" + strconv.FormatInt(id, 10)
 	if cached, err := s.cache.Get(ctx, cacheKey); err == nil {
 		// JSON反序列化缓存数据
 		var user domain.User
@@ -113,20 +110,17 @@ func (s *UserAppService) GetUserInfo(ctx context.Context, id int64) (*domain.Use
 			}
 		}
 	}
-
 	// 从数据库获取
 	user, err := s.userRepo.FindByID(ctx, id)
 	if err != nil {
 		logger.Log().Error("application: 查询用户失败: id=%d, err=%v", id, err)
 		return nil, err
 	}
-
 	// 缓存用户信息 - JSON序列化并缓存用户数据
 	if userData, err := json.Marshal(user); err == nil {
 		// 设置缓存，过期时间30分钟
 		_ = s.cache.Set(ctx, cacheKey, string(userData), 30*time.Minute)
 	}
-
 	return user, nil
 }
 
@@ -137,7 +131,6 @@ func (s *UserAppService) UpdateUserInfo(ctx context.Context, id int64, updates m
 		logger.Log().Error("application: 更新失败: 读取用户错误 id=%d err=%v", id, err)
 		return err
 	}
-
 	// 更新字段
 	for key, value := range updates {
 		switch key {
@@ -159,18 +152,14 @@ func (s *UserAppService) UpdateUserInfo(ctx context.Context, id int64, updates m
 			}
 		}
 	}
-
 	user.UpdatedAt = time.Now()
-
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		logger.Log().Error("application: 更新失败: 写入用户错误 id=%d err=%v", id, err)
 		return err
 	}
-
 	// 清除缓存
-	cacheKey := "user:" + strconv.FormatInt(id, 10)
+	cacheKey := "user_" + strconv.FormatInt(id, 10)
 	_ = s.cache.Del(ctx, cacheKey)
-
 	logger.Log().Info("application: 更新成功: id=%d", id)
 	return nil
 }
@@ -182,23 +171,19 @@ func (s *UserAppService) ChangePassword(ctx context.Context, id int64, oldPasswo
 		logger.Log().Error("application: 修改密码失败: 读取用户错误 id=%d err=%v", id, err)
 		return err
 	}
-
 	// 验证旧密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {
-		logger.Log().Warn("application: 修改密码失败: 旧密码错误 id=%d", id)
+		logger.Log().Warn("application: 修改密码失败: 旧密码错误 id=%d, err=%v", id, err)
 		return errors.New("旧密码错误")
 	}
-
 	// 加密新密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		logger.Log().Error("application: 修改密码失败: 加密错误 id=%d err=%v", id, err)
 		return err
 	}
-
 	user.Password = string(hashedPassword)
 	user.UpdatedAt = time.Now()
-
 	return s.userRepo.Update(ctx, user)
 }
 
@@ -209,12 +194,8 @@ func (s *UserAppService) ResetPassword(ctx context.Context, email string) error 
 		logger.Log().Error("application: 重置密码失败: 读取用户错误 email=%s err=%v", email, err)
 		return err
 	}
-
 	// TODO: 发送重置密码邮件
-	// 这里应该生成重置令牌并发送邮件
-	// 可以使用user.Email发送重置邮件
-	_ = user // 暂时忽略，后续实现邮件发送功能
-
+	_ = user
 	return nil
 }
 

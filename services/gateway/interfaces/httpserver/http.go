@@ -1,16 +1,20 @@
-package api
+package httpserver
 
 import (
 	"io"
 	"net/http"
-	"time"
+	"strconv"
 
+	"blog-system/common/pkg/dto"
+	"blog-system/common/pkg/errcode"
 	"blog-system/common/pkg/logger"
 	"blog-system/services/gateway/application"
 	"blog-system/services/gateway/domain"
 
 	"github.com/CoucouMonEcho/go-framework/web"
-	"github.com/CoucouMonEcho/go-framework/web/middlewares/recover"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/accesslog"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/errhandle"
+	webprom "github.com/CoucouMonEcho/go-framework/web/middlewares/prometheus"
 )
 
 // HTTPServer HTTP服务器
@@ -21,37 +25,47 @@ type HTTPServer struct {
 
 // NewHTTPServer 创建HTTP服务器
 func NewHTTPServer(gatewayService *application.GatewayService) *HTTPServer {
-	// Request ID 中间件
-	requestIDMiddleware := func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			requestID := time.Now().Format("20060102150405.000000")
-			ctx.Resp.Header().Set("X-Request-ID", requestID)
-			next(ctx)
-		}
-	}
-
-	// 使用go-framework的recover中间件
-	recoverMiddleware := recover.MiddlewareBuilder{
-		Code: http.StatusInternalServerError,
-		Data: []byte("Internal Server Error"),
-		Log: func(ctx *web.Context) {
-			logger.Log().Error("recover: 服务恢复中间件触发")
-		},
-	}.Build()
-
 	server := web.NewHTTPServer(
 		web.ServerWithLogger(logger.Log().Error),
 		web.ServerWithMiddlewares(
-			requestIDMiddleware,
-			recoverMiddleware,
-			loggerMiddleware(),
-			corsMiddleware(),
+			errhandle.NewMiddlewareBuilder().RegisterError(http.StatusInternalServerError, []byte("内部服务错误")).Build(),
+			accesslog.NewMiddlewareBuilder().LogFunc(func(log string) { logger.Log().Info(log) }).Build(),
+			webprom.MiddlewareBuilder{Namespace: "blog-system", Subsystem: "gateway", Name: "http", Help: "gateway http latency"}.Build(),
 		),
 	)
 
-	return &HTTPServer{
+	hs := &HTTPServer{
 		gatewayService: gatewayService,
 		server:         server,
+	}
+
+	// 挂载统一JWT鉴权（跳过健康检查与登录）
+	server.Use(http.MethodGet, "/api/*", hs.authMiddleware())
+	server.Use(http.MethodPost, "/api/*", hs.authMiddleware())
+
+	return hs
+}
+
+// authMiddleware 统一JWT鉴权
+func (s *HTTPServer) authMiddleware() web.Middleware {
+	return func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			path := ctx.Req.URL.Path
+			if path == "/health" || path == "/api/user/login" {
+				next(ctx)
+				return
+			}
+			authorization := ctx.Req.Header.Get("Authorization")
+			uid, err := s.gatewayService.Authenticate(ctx.Req.Context(), authorization)
+			if err != nil {
+				logger.Log().Warn("httpserver: 鉴权失败: %v", err)
+				_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrTokenInvalid, err.Error()))
+				return
+			}
+			// 透传 X-User-ID，供后端使用
+			ctx.Req.Header.Set("X-User-ID", strconv.FormatInt(uid, 10))
+			next(ctx)
+		}
 	}
 }
 
@@ -63,37 +77,6 @@ func (s *HTTPServer) Run(addr string) error {
 	s.server.Get("/api/*", proxyHandler(s.gatewayService))
 
 	return s.server.Start(addr)
-}
-
-// loggerMiddleware 日志中间件
-func loggerMiddleware() web.Middleware {
-	return func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			start := time.Now()
-
-			next(ctx)
-
-			logger.Log().Info("http: 请求: %s %s %d %s %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start), ctx.Req.RemoteAddr)
-		}
-	}
-}
-
-// corsMiddleware CORS中间件
-func corsMiddleware() web.Middleware {
-	return func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			ctx.Resp.Header().Set("Access-Control-Allow-Origin", "*")
-			ctx.Resp.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			ctx.Resp.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-
-			if ctx.Req.Method == "OPTIONS" {
-				_ = ctx.RespJSON(http.StatusNoContent, "")
-				return
-			}
-
-			next(ctx)
-		}
-	}
 }
 
 // healthHandler 健康检查处理器
@@ -119,7 +102,7 @@ func proxyHandler(gatewayService *application.GatewayService) web.Handler {
 		// 读取请求体
 		body, err := io.ReadAll(ctx.Req.Body)
 		if err != nil {
-			logger.Log().Error("proxy: 读取请求体失败: %v", err)
+			logger.Log().Error("httpserver: 读取请求体失败: %v", err)
 			_ = ctx.RespJSON(http.StatusBadRequest, map[string]interface{}{"error": "读取请求体失败"})
 			return
 		}
@@ -133,11 +116,16 @@ func proxyHandler(gatewayService *application.GatewayService) web.Handler {
 			Client:  clientIP,
 		}
 
+		// 如果已鉴权，限流维度改为用户ID（下划线拼接）
+		if uid := ctx.Req.Header.Get("X-User-ID"); uid != "" {
+			proxyReq.Client = "uid_" + uid
+		}
+
 		// 执行代理请求
 		reqCtx := ctx.Req.Context()
 		resp, err := gatewayService.ProxyRequest(reqCtx, proxyReq)
 		if err != nil {
-			logger.Log().Error("proxy: 代理请求失败: %v", err)
+			logger.Log().Error("httpserver: 代理请求失败: %v", err)
 			_ = ctx.RespJSON(http.StatusInternalServerError, map[string]interface{}{"error": "代理请求失败"})
 			return
 		}

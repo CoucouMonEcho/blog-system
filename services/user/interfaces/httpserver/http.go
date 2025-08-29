@@ -4,7 +4,6 @@ import (
 	"blog-system/common/pkg/dto"
 	"blog-system/common/pkg/errcode"
 	"blog-system/common/pkg/logger"
-	"blog-system/common/pkg/util"
 	"blog-system/services/user/application"
 	"net/http"
 	"time"
@@ -42,14 +41,9 @@ func NewHTTPServer(userService *application.UserAppService) *HTTPServer {
 func (s *HTTPServer) registerRoutes() {
 	s.server.Get("/health", s.HealthCheck)
 	s.server.Post("/api/login", s.Login)
-	// 认证接口
-	s.server.Use(http.MethodGet, "/api/auth/*", s.AuthMiddleware())
-	s.server.Use(http.MethodPost, "/api/auth/*", s.AuthMiddleware())
-	{
-		s.server.Get("/api/auth/info/:user_id", s.GetUserInfo)
-		s.server.Post("/api/auth/update", s.UpdateUserInfo)
-		s.server.Post("/api/auth/password", s.ChangePassword)
-	}
+	s.server.Get("/api/info/:user_id", s.GetUserInfo)
+	s.server.Post("/api/update", s.UpdateUserInfo)
+	s.server.Post("/api/password", s.ChangePassword)
 }
 
 // HealthCheck 健康检查
@@ -162,30 +156,6 @@ func (s *HTTPServer) ChangePassword(ctx *web.Context) {
 		return
 	}
 	_ = ctx.RespJSONOK(dto.SuccessNil())
-}
-
-// AuthMiddleware JWT 认证中间件
-func (s *HTTPServer) AuthMiddleware() web.Middleware {
-	return func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			token := ctx.Req.Header.Get("Authorization")
-			if token == "" {
-				_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrUnauthorized, "缺少认证令牌"))
-				return
-			}
-			if len(token) > 7 && token[:7] == "Bearer " {
-				token = token[7:]
-			}
-			claims, err := util.ParseToken(token)
-			if err != nil {
-				_ = ctx.RespJSON(http.StatusUnauthorized, dto.Error(errcode.ErrTokenInvalid, err.Error()))
-				return
-			}
-			ctx.UserValues["user_id"] = claims.UserID
-			ctx.UserValues["user_role"] = claims.Role
-			next(ctx)
-		}
-	}
 }
 
 // Run 启动服务器

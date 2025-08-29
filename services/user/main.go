@@ -35,7 +35,7 @@ func main() {
 	}
 	logger.Log().Info("main: 数据库连接成功")
 
-	// 初始化缓存 - 添加错误处理但不退出
+	// 初始化缓存
 	cache, err := infra.InitCache(cfg)
 	if err != nil {
 		logger.Log().Error("main: 缓存连接失败: %v", err)
@@ -66,7 +66,7 @@ func main() {
 	}
 	pb.RegisterUserServiceServer(grpcSrv, grpcapi.NewGRPCServer(userService))
 
-	// 注册到注册中心（HTTP）
+	// 注册到注册中心 HTTP
 	if err := infra.RegisterService(cfg); err != nil {
 		logger.Log().Error("main: 注册到注册中心失败: %v", err)
 	} else {

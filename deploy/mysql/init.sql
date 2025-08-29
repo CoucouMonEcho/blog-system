@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS blog_article
     slug          VARCHAR(200) NOT NULL UNIQUE,
     content       LONGTEXT     NOT NULL,
     summary       TEXT,
+    cover         VARCHAR(500),
     author_id     BIGINT       NOT NULL,
     category_id   BIGINT       NOT NULL,
     status        TINYINT      NOT NULL DEFAULT 0 COMMENT '0: 草稿, 1: 发布, 2: 私密',

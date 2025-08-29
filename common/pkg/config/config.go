@@ -20,7 +20,7 @@ type RedisClusterConfig struct {
 	WriteTimeout string   `yaml:"write_timeout"`
 }
 
-// Gateway specific route config (optional in unified config)
+// RouteConfig Gateway specific route config (optional in unified config)
 type RouteConfig struct {
 	User    Route `yaml:"user"`
 	Content Route `yaml:"content"`

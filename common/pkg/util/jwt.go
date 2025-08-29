@@ -7,8 +7,8 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-// jwtKey 服务重启时失效
-var jwtKey = []byte("coucoumonecho-0721" + time.Now().Format("20060102150405.000000"))
+// jwtKey 固定秘钥 正常应使用环境变量
+var jwtKey = []byte("coucou-mon-echo-0721")
 
 // Claims JWT 声明
 type Claims struct {
@@ -37,30 +37,11 @@ func ParseToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
-
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
 		return claims, nil
 	}
-
 	return nil, errors.New("invalid token")
-}
-
-// RefreshToken 刷新令牌
-func RefreshToken(tokenString string) (string, error) {
-	claims, err := ParseToken(tokenString)
-	if err != nil {
-		return "", err
-	}
-
-	// 检查令牌是否即将过期（比如还有1小时过期）
-	if time.Until(claims.ExpiresAt.Time) > time.Hour {
-		return "", errors.New("token not expired yet")
-	}
-
-	// 生成新令牌
-	return GenerateToken(claims.UserID, claims.Role)
 }

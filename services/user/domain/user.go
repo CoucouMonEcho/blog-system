@@ -19,7 +19,6 @@ type User struct {
 	UpdatedAt time.Time       `json:"updated_at"`
 }
 
-// TableName 显式指定表名，避免命名策略差异导致的表名不匹配
 func (User) TableName() string { return "blog_user" }
 
 // UserRepository 用户仓储接口

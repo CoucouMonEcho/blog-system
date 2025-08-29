@@ -25,6 +25,7 @@ type Article struct {
 	Slug        string     `json:"slug"`
 	Content     string     `json:"content"`
 	Summary     string     `json:"summary"`
+	Cover       string     `json:"cover"`
 	AuthorID    int64      `json:"author_id"`
 	CategoryID  int64      `json:"category_id"`
 	Status      int        `json:"status"`
@@ -47,6 +48,18 @@ type Category struct {
 }
 
 func (Category) TableName() string { return "blog_category" }
+
+// Tag 领域
+type Tag struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	Slug      string    `json:"slug"`
+	Color     string    `json:"color"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (Tag) TableName() string { return "blog_tag" }
 
 type UserRepository interface {
 	Create(ctx context.Context, u *User) error

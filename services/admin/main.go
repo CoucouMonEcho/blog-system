@@ -32,7 +32,7 @@ func main() {
 	// 注册服务发现（失败不阻断启动）
 	if err := infrastructure.RegisterService(cfg); err != nil {
 		log.Printf("注册中心失败: %v (忽略继续)", err)
-		logger.Log().Error("registry: 注册到注册中心失败: %v", err)
+		logger.Log().Error("main: 注册到注册中心失败: %v", err)
 	}
 	addr := ":" + strconv.Itoa(cfg.App.Port)
 	if err := http.Run(addr); err != nil {

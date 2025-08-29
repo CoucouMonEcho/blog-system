@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"blog-system/common/pkg/logger"
@@ -12,6 +12,7 @@ import (
 	"github.com/CoucouMonEcho/go-framework/cache"
 )
 
+// ContentAppService 内容应用服务
 type ContentAppService struct {
 	repo   domain.ContentRepository
 	logger logger.Logger
@@ -22,6 +23,7 @@ func NewContentService(repo domain.ContentRepository, lgr logger.Logger, c cache
 	return &ContentAppService{repo: repo, logger: lgr, cache: c}
 }
 
+// 文章相关
 func (s *ContentAppService) Create(ctx context.Context, a *domain.Article) (*domain.Article, error) {
 	if a.PublishedAt == nil && a.Status == 1 {
 		now := time.Now()
@@ -36,7 +38,6 @@ func (s *ContentAppService) Create(ctx context.Context, a *domain.Article) (*dom
 		s.logger.Error("application: 创建文章失败: %v", err)
 		return nil, err
 	}
-	// 简单回查：以 slug 为唯一键可以添加，暂时省略，调用方可再查
 	return a, nil
 }
 
@@ -49,7 +50,6 @@ func (s *ContentAppService) Update(ctx context.Context, a *domain.Article) error
 	if a.ID == 0 {
 		return fmt.Errorf("invalid id")
 	}
-	// 发布状态且未设置发布时间时自动设置
 	if a.PublishedAt == nil && a.Status == 1 {
 		now := time.Now()
 		a.PublishedAt = &now
@@ -58,7 +58,7 @@ func (s *ContentAppService) Update(ctx context.Context, a *domain.Article) error
 	return s.repo.UpdateArticle(ctx, a)
 }
 
-// Delete 删除文章（逻辑删除）
+// Delete 删除文章（物理删除 + 关联删除在仓储实现）
 func (s *ContentAppService) Delete(ctx context.Context, id int64) error {
 	if id == 0 {
 		return fmt.Errorf("invalid id")
@@ -66,7 +66,7 @@ func (s *ContentAppService) Delete(ctx context.Context, id int64) error {
 	return s.repo.DeleteArticle(ctx, id)
 }
 
-// ListSummaries 分页查询文章摘要
+// ListSummaries 分页查询文章摘要（内部复用）
 func (s *ContentAppService) ListSummaries(ctx context.Context, page, pageSize int) ([]*domain.ArticleSummary, int64, error) {
 	return s.repo.ListArticleSummaries(ctx, page, pageSize)
 }
@@ -76,38 +76,32 @@ func (s *ContentAppService) SearchSummaries(ctx context.Context, keyword string,
 	return s.repo.SearchArticleSummaries(ctx, keyword, page, pageSize)
 }
 
-// GetCategoryTree 树状分类，带缓存（简单内存缓存可后续替换为 Redis）
-func (s *ContentAppService) GetCategoryTree(ctx context.Context) ([]*domain.CategoryNode, error) {
-	if s.cache != nil {
-		if v, err := s.cache.Get(ctx, "content:category_tree"); err == nil {
-			if str, ok := v.(string); ok {
-				var cached []*domain.CategoryNode
-				if json.Unmarshal([]byte(str), &cached) == nil {
-					return cached, nil
-				}
-			}
-		}
-	}
-	list, err := s.repo.ListAllCategories(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// 单层分类：直接返回扁平列表（保留 Node 结构，Children 为空）
-	var roots []*domain.CategoryNode
-	for _, c := range list {
-		roots = append(roots, &domain.CategoryNode{ID: c.ID, Name: c.Name, Slug: c.Slug})
-	}
-	if s.cache != nil {
-		if b, err := json.Marshal(roots); err == nil {
-			_ = s.cache.Set(ctx, "content:category_tree", string(b), 5*time.Minute)
-		}
-	}
-	return roots, nil
+// 全量文章列表与计数（用于对外接口不分页）
+func (s *ContentAppService) CountArticles(ctx context.Context) (int64, error) {
+	return s.repo.CountArticles(ctx)
 }
 
-// ====== 分类与文章管理供 gRPC 调用 ======
+func (s *ContentAppService) ListAllArticles(ctx context.Context) ([]*domain.Article, int64, error) {
+	// 复用分页接口：一次拉取全部
+	const max = int(^uint(0) >> 1)
+	list, total, err := s.repo.ListArticles(ctx, 1, max)
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
+// 分类（单级）
 func (s *ContentAppService) ListCategories(ctx context.Context, page, pageSize int) ([]*domain.Category, int64, error) {
 	return s.repo.ListCategories(ctx, page, pageSize)
+}
+
+func (s *ContentAppService) ListAllCategories(ctx context.Context) ([]*domain.Category, error) {
+	return s.repo.ListAllCategories(ctx)
+}
+
+func (s *ContentAppService) CountCategories(ctx context.Context) (int64, error) {
+	return s.repo.CountCategories(ctx)
 }
 
 func (s *ContentAppService) UpdateCategory(ctx context.Context, c *domain.Category) error {
@@ -124,4 +118,45 @@ func (s *ContentAppService) CreateCategory(ctx context.Context, c *domain.Catego
 	c.CreatedAt = now
 	c.UpdatedAt = now
 	return s.repo.CreateCategory(ctx, c)
+}
+
+// 标签
+func (s *ContentAppService) CreateTag(ctx context.Context, t *domain.Tag) error {
+	now := time.Now()
+	t.CreatedAt = now
+	t.UpdatedAt = now
+	return s.repo.CreateTag(ctx, t)
+}
+
+func (s *ContentAppService) UpdateTag(ctx context.Context, t *domain.Tag) error {
+	t.UpdatedAt = time.Now()
+	return s.repo.UpdateTag(ctx, t)
+}
+
+func (s *ContentAppService) DeleteTag(ctx context.Context, id int64) error {
+	return s.repo.DeleteTag(ctx, id)
+}
+
+func (s *ContentAppService) ListTags(ctx context.Context, page, pageSize int) ([]*domain.Tag, int64, error) {
+	return s.repo.ListTags(ctx, page, pageSize)
+}
+
+func (s *ContentAppService) CountTags(ctx context.Context) (int64, error) {
+	return s.repo.CountTags(ctx)
+}
+
+func (s *ContentAppService) ListAllTags(ctx context.Context) ([]*domain.Tag, int64, error) {
+	list, total, err := s.repo.ListTags(ctx, 1, math.MaxInt)
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
+func (s *ContentAppService) GetArticleTags(ctx context.Context, articleID int64) ([]*domain.Tag, error) {
+	return s.repo.ListArticleTags(ctx, articleID)
+}
+
+func (s *ContentAppService) SetArticleTags(ctx context.Context, articleID int64, tagIDs []int64) error {
+	return s.repo.UpdateArticleTags(ctx, articleID, tagIDs)
 }

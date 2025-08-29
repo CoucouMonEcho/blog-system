@@ -27,20 +27,26 @@ type UserClient interface {
 	List(ctx context.Context, page, pageSize int) ([]*domain.User, int64, error)
 }
 
-// ContentClient 抽象 content-service 能力（文章/分类管理）
+// ContentClient 抽象 content-service 能力（文章/分类/标签管理）
 type ContentClient interface {
 	// 文章
 	CreateArticle(ctx context.Context, a *domain.Article) error
 	UpdateArticle(ctx context.Context, a *domain.Article) error
 	DeleteArticle(ctx context.Context, id int64) error
-	ListArticles(ctx context.Context, page, pageSize int) ([]*domain.Article, int64, error)
+	ListArticles(ctx context.Context) ([]*domain.Article, int64, error)
 	CountArticles(ctx context.Context) (int64, error)
-	// 分类
+	// 分类（全量）
 	CreateCategory(ctx context.Context, c *domain.Category) error
 	UpdateCategory(ctx context.Context, c *domain.Category) error
 	DeleteCategory(ctx context.Context, id int64) error
-	ListCategories(ctx context.Context, page, pageSize int) ([]*domain.Category, int64, error)
+	ListCategories(ctx context.Context) ([]*domain.Category, int64, error)
 	CountCategories(ctx context.Context) (int64, error)
+	// 标签（全量）
+	CreateTag(ctx context.Context, t *domain.Tag) error
+	UpdateTag(ctx context.Context, t *domain.Tag) error
+	DeleteTag(ctx context.Context, id int64) error
+	ListTags(ctx context.Context) ([]*domain.Tag, error)
+	CountTags(ctx context.Context) (int64, error)
 }
 
 func NewAdminService(userCli UserClient, contentCli ContentClient, l logger.Logger, cache cache.Cache, stat StatClient, prom PromClient) *AdminService {
@@ -81,8 +87,8 @@ func (s *AdminService) UpdateArticle(ctx context.Context, a *domain.Article) err
 func (s *AdminService) DeleteArticle(ctx context.Context, id int64) error {
 	return s.Content.DeleteArticle(ctx, id)
 }
-func (s *AdminService) ListArticles(ctx context.Context, page, pageSize int) ([]*domain.Article, int64, error) {
-	return s.Content.ListArticles(ctx, page, pageSize)
+func (s *AdminService) ListArticles(ctx context.Context) ([]*domain.Article, int64, error) {
+	return s.Content.ListArticles(ctx)
 }
 
 // 分类管理
@@ -116,11 +122,28 @@ func (s *AdminService) DeleteCategory(ctx context.Context, id int64) error {
 	}
 	return nil
 }
-func (s *AdminService) ListCategories(ctx context.Context, page, pageSize int) ([]*domain.Category, int64, error) {
-	return s.Content.ListCategories(ctx, page, pageSize)
+func (s *AdminService) ListCategories(ctx context.Context) ([]*domain.Category, int64, error) {
+	return s.Content.ListCategories(ctx)
 }
 
-// Dashboard 概览：从 stat 获取 pv/uv/online，再从仓储取文章/分类总数；5xx 暂返回 0（可接入 otel/日志）
+// 标签管理（全量）
+func (s *AdminService) CreateTag(ctx context.Context, t *domain.Tag) error {
+	return s.Content.CreateTag(ctx, t)
+}
+func (s *AdminService) UpdateTag(ctx context.Context, t *domain.Tag) error {
+	return s.Content.UpdateTag(ctx, t)
+}
+func (s *AdminService) DeleteTag(ctx context.Context, id int64) error {
+	return s.Content.DeleteTag(ctx, id)
+}
+func (s *AdminService) ListTags(ctx context.Context) ([]*domain.Tag, error) {
+	return s.Content.ListTags(ctx)
+}
+func (s *AdminService) CountTags(ctx context.Context) (int64, error) {
+	return s.Content.CountTags(ctx)
+}
+
+// Dashboard 概览
 func (s *AdminService) Dashboard(ctx context.Context) (map[string]int64, error) {
 	if s.Stat == nil {
 		return nil, errors.New("stat 客户端未初始化")

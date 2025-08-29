@@ -13,7 +13,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-// RegisterService registers the HTTP user service endpoint using go-framework registry.
+// RegisterService registers HTTP
 func RegisterService(cfg *conf.AppConfig) error {
 	if len(cfg.Registry.Endpoints) == 0 {
 		return nil

@@ -4,7 +4,7 @@ package content;
 
 option go_package = "blog-system/services/content/proto";
 
-// protoc --go_out=../../../. --go-grpc_out=../../../. stat.proto
+// protoc --go_out=../../../. --go-grpc_out=../../../. content.proto
 
 // 文章信息
 message Article {
@@ -13,14 +13,15 @@ message Article {
   string slug = 3;
   string content = 4;
   string summary = 5;
-  int64 author_id = 6;
-  int64 category_id = 7;
-  int32 status = 8;
-  bool is_top = 9;
-  bool is_recommend = 10;
-  string published_at = 11;
-  string created_at = 12;
-  string updated_at = 13;
+  string cover = 6;
+  int64 author_id = 7;
+  int64 category_id = 8;
+  int32 status = 9;
+  bool is_top = 10;
+  bool is_recommend = 11;
+  string published_at = 12;
+  string created_at = 13;
+  string updated_at = 14;
 }
 
 // 分类信息
@@ -33,36 +34,55 @@ message Category {
   string updated_at = 6;
 }
 
-// 分页信息
-message Page {
-  int32 page = 1;
-  int32 page_size = 2;
+// 标签信息
+message Tag {
+  int64 id = 1;
+  string name = 2;
+  string slug = 3;
+  string color = 4;
+  string created_at = 5;
+  string updated_at = 6;
 }
 
 // 内容服务
 service ContentAdminService {
+  // 文章
   rpc CreateArticle(Article) returns (.content.Empty);
   rpc UpdateArticle(Article) returns (.content.Empty);
   rpc DeleteArticle(.content.Id) returns (.content.Empty);
-  rpc ListArticles(Page) returns (ArticleListResponse);
+  rpc ListArticles(.content.Empty) returns (ArticleListResponse);
   rpc CountArticles(.content.Empty) returns (.content.Count);
 
+  // 分类（全量）
   rpc CreateCategory(Category) returns (.content.Empty);
   rpc UpdateCategory(Category) returns (.content.Empty);
   rpc DeleteCategory(.content.Id) returns (.content.Empty);
-  rpc ListCategories(Page) returns (CategoryListResponse);
+  rpc ListCategories(.content.Empty) returns (CategoryListResponse);
   rpc CountCategories(.content.Empty) returns (.content.Count);
+
+  // 标签（全量）
+  rpc CreateTag(Tag) returns (.content.Empty);
+  rpc UpdateTag(Tag) returns (.content.Empty);
+  rpc DeleteTag(.content.Id) returns (.content.Empty);
+  rpc ListTags(.content.Empty) returns (TagListResponse);
+  rpc CountTags(.content.Empty) returns (.content.Count);
 }
 
-// 文章信息
+// 文章列表响应
 message ArticleListResponse {
   repeated Article data = 1;
   int64 total = 2;
 }
 
+// 分类列表响应
 message CategoryListResponse {
   repeated Category data = 1;
   int64 total = 2;
+}
+
+// 标签列表响应
+message TagListResponse {
+  repeated Tag tags = 1;
 }
 
 message Empty {}

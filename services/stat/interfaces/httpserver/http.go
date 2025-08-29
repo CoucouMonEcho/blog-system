@@ -7,12 +7,12 @@ import (
 	infra "blog-system/services/stat/infrastructure"
 	persistence "blog-system/services/stat/infrastructure/persistence"
 	"net/http"
-	"runtime/debug"
 	"strconv"
 	"time"
 
 	"github.com/CoucouMonEcho/go-framework/web"
-	webotel "github.com/CoucouMonEcho/go-framework/web/middlewares/opentelemetry"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/accesslog"
+	"github.com/CoucouMonEcho/go-framework/web/middlewares/errhandle"
 	webprom "github.com/CoucouMonEcho/go-framework/web/middlewares/prometheus"
 )
 
@@ -31,32 +31,13 @@ func NewHTTPServer() *HTTPServer {
 		}
 	}
 
-	customRecover := func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			defer func() {
-				if r := recover(); r != nil {
-					logger.Log().Error("recover: panic=%v path=%s\nstack=%s", r, ctx.Req.URL.Path, string(debug.Stack()))
-					_ = ctx.RespJSON(http.StatusInternalServerError, map[string]any{"error": "内部服务错误"})
-				}
-			}()
-			next(ctx)
-		}
-	}
-	requestLogger := func(next web.Handler) web.Handler {
-		return func(ctx *web.Context) {
-			start := time.Now()
-			next(ctx)
-			logger.Log().Info("http: 请求: %s %s %d %s", ctx.Req.Method, ctx.Req.URL.Path, ctx.RespCode, time.Since(start))
-		}
-	}
 	server := web.NewHTTPServer(
 		web.ServerWithLogger(logger.Log().Error),
 		web.ServerWithMiddlewares(
 			requestIDMiddleware,
-			customRecover,
-			requestLogger,
-			webotel.MiddlewareBuilder{}.Build(),
-			webprom.MiddlewareBuilder{Namespace: "blog", Subsystem: "stat", Name: "http", Help: "stat http latency"}.Build(),
+			errhandle.NewMiddlewareBuilder().RegisterError(http.StatusInternalServerError, []byte("内部服务错误")).Build(),
+			accesslog.NewMiddlewareBuilder().LogFunc(func(log string) { logger.Log().Info(log) }).Build(),
+			webprom.MiddlewareBuilder{Namespace: "blog-system", Subsystem: "stat", Name: "http", Help: "stat http latency"}.Build(),
 		),
 	)
 	s := &HTTPServer{server: server, agg: infra.NewPVAggregator()}
