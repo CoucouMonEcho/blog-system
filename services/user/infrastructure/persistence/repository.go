@@ -36,7 +36,7 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 
 // FindByID 根据ID查找用户
 func (r *UserRepository) FindByID(ctx context.Context, id int64) (*domain.User, error) {
-	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("Id").Eq(id)).Get(ctx)
+	user, err := orm.NewSelector[domain.User](r.db).Where(orm.C("ID").Eq(id)).Get(ctx)
 	if err != nil {
 		logger.Log().Warn("repository: FindByID 查询失败: id=%d err=%v", id, err)
 		return nil, err
@@ -77,7 +77,7 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 		Set(orm.C("Avatar"), user.Avatar).
 		Set(orm.C("Status"), user.Status).
 		Set(orm.C("UpdatedAt"), user.UpdatedAt).
-		Where(orm.C("Id").Eq(user.ID)).
+		Where(orm.C("ID").Eq(user.ID)).
 		Exec(ctx).Err(); err != nil {
 		logger.Log().Error("repository: Update 用户失败: id=%d err=%v", user.ID, err)
 		return err
@@ -87,7 +87,7 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 
 // Delete 删除用户
 func (r *UserRepository) Delete(ctx context.Context, id int64) error {
-	if err := orm.NewUpdater[domain.User](r.db).Set(orm.C("Status"), 1).Where(orm.C("Id").Eq(id)).Exec(ctx).Err(); err != nil {
+	if err := orm.NewUpdater[domain.User](r.db).Set(orm.C("Status"), 1).Where(orm.C("ID").Eq(id)).Exec(ctx).Err(); err != nil {
 		logger.Log().Error("repository: Delete 用户失败: id=%d err=%v", id, err)
 		return err
 	}
@@ -114,7 +114,7 @@ func (r *UserRepository) List(ctx context.Context, page, pageSize int) ([]*domai
 
 // UpdateStatus 更新用户状态
 func (r *UserRepository) UpdateStatus(ctx context.Context, id int64, status int) error {
-	if err := orm.NewUpdater[domain.User](r.db).Set(orm.C("Status"), status).Where(orm.C("Id").Eq(id)).Exec(ctx).Err(); err != nil {
+	if err := orm.NewUpdater[domain.User](r.db).Set(orm.C("Status"), status).Where(orm.C("ID").Eq(id)).Exec(ctx).Err(); err != nil {
 		logger.Log().Error("repository: UpdateStatus 失败: id=%d status=%d err=%v", id, status, err)
 		return err
 	}
