@@ -103,7 +103,7 @@ func (r *UserRepository) List(ctx context.Context, page, pageSize int) ([]*domai
 		return nil, 0, err
 	}
 
-	total, err := orm.NewSelector[int64](r.db).From(orm.TableOf(&domain.User{})).Select(orm.Count("1")).Get(ctx)
+	total, err := orm.NewSelector[int64](r.db).From(orm.TableOf(&domain.User{})).Select(orm.Count("ID")).Get(ctx)
 	if err != nil {
 		logger.Log().Warn("repository: List 统计总数失败: err=%v", err)
 		return nil, 0, err

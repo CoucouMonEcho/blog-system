@@ -149,7 +149,11 @@ func (s *HTTPServer) ListTags(ctx *web.Context) {
 	}
 	out := make([]TagVO, 0, len(tagsWithCount))
 	for _, tc := range tagsWithCount {
-		out = append(out, TagVO{ID: tc.Tag.ID, Name: tc.Tag.Name, Slug: tc.Tag.Slug, Color: tc.Tag.Color, Count: tc.Count})
+		color := ""
+		if tc.Tag.Color != nil && tc.Tag.Color.Valid {
+			color = tc.Tag.Color.String
+		}
+		out = append(out, TagVO{ID: tc.Tag.ID, Name: tc.Tag.Name, Slug: tc.Tag.Slug, Color: color, Count: tc.Count})
 	}
 	_ = ctx.RespJSONOK(dto.Success(out))
 }

@@ -2,29 +2,30 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
 type Article struct {
-	ID           int64      `json:"id"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Content      string     `json:"content"`
-	Summary      string     `json:"summary"`
-	Cover        string     `json:"cover"`
-	AuthorID     int64      `json:"author_id"`
-	CategoryID   int64      `json:"category_id"`
-	Status       int        `json:"status"`
-	ViewCount    int64      `json:"view_count"`
-	LikeCount    int64      `json:"like_count"`
-	IsTop        bool       `json:"is_top"`
-	IsRecommend  bool       `json:"is_recommend"`
-	MetaTitle    string     `json:"meta_title"`
-	MetaDesc     string     `json:"meta_desc"`
-	MetaKeywords string     `json:"meta_keywords"`
-	PublishedAt  *time.Time `json:"published_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID           int64           `json:"id"`
+	Title        string          `json:"title"`
+	Slug         string          `json:"slug"`
+	Content      string          `json:"content"`
+	Summary      *sql.NullString `json:"summary"`
+	Cover        *sql.NullString `json:"cover"`
+	AuthorID     int64           `json:"author_id"`
+	CategoryID   int64           `json:"category_id"`
+	Status       int             `json:"status"`
+	ViewCount    int64           `json:"view_count"`
+	LikeCount    int64           `json:"like_count"`
+	IsTop        bool            `json:"is_top"`
+	IsRecommend  bool            `json:"is_recommend"`
+	MetaTitle    *sql.NullString `json:"meta_title"`
+	MetaDesc     *sql.NullString `json:"meta_desc"`
+	MetaKeywords *sql.NullString `json:"meta_keywords"`
+	PublishedAt  *time.Time      `json:"published_at"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
 func (Article) TableName() string { return "blog_article" }
@@ -42,13 +43,13 @@ type ArticleSummary struct {
 
 // Category 分类领域模型（单级）
 type Category struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	Slug        string    `json:"slug"`
-	Description string    `json:"description"`
-	Sort        int       `json:"sort"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          int64           `json:"id"`
+	Name        string          `json:"name"`
+	Slug        string          `json:"slug"`
+	Description *sql.NullString `json:"description"`
+	Sort        int             `json:"sort"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 func (Category) TableName() string { return "blog_category" }
@@ -62,12 +63,12 @@ type CategoryBrief struct {
 
 // Tag 标签领域模型
 type Tag struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	Slug      string    `json:"slug"`
-	Color     string    `json:"color"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int64           `json:"id"`
+	Name      string          `json:"name"`
+	Slug      string          `json:"slug"`
+	Color     *sql.NullString `json:"color"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
 }
 
 func (Tag) TableName() string { return "blog_tag" }
