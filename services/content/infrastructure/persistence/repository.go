@@ -43,7 +43,7 @@ func (r *ContentRepository) ListArticles(ctx context.Context, page, pageSize int
 	return list, cnt.ID, nil
 }
 
-// ListArticleSummaries 仅返回 ID 与 Title
+// ListArticleSummaries 仅返回 ID 与 Title（扩展：填充 summary/author/category/tags/cover_url）
 func (r *ContentRepository) ListArticleSummaries(ctx context.Context, page, pageSize int) ([]*domain.ArticleSummary, int64, error) {
 	offset := (page - 1) * pageSize
 	rows, err := orm.NewSelector[domain.Article](r.db).
@@ -58,7 +58,35 @@ func (r *ContentRepository) ListArticleSummaries(ctx context.Context, page, page
 		if a == nil {
 			continue
 		}
-		summaries = append(summaries, &domain.ArticleSummary{ID: a.ID, Title: a.Title})
+		s := &domain.ArticleSummary{ID: a.ID, Title: a.Title, AuthorID: a.AuthorID}
+		// summary：若空则取 content 前 120 字符（近似）
+		if a.Summary != "" {
+			s.Summary = a.Summary
+		} else {
+			runes := []rune(a.Content)
+			if len(runes) > 120 {
+				s.Summary = string(runes[:120])
+			} else {
+				s.Summary = string(runes)
+			}
+		}
+		// cover_url：取 Cover 字段
+		s.CoverURL = a.Cover
+		// category 简要
+		if a.CategoryID > 0 {
+			c, er := orm.NewSelector[domain.Category](r.db).Where(orm.C("Id").Eq(a.CategoryID)).Get(ctx)
+			if er == nil && c != nil {
+				s.Category = &domain.CategoryBrief{ID: c.ID, Name: c.Name, Slug: c.Slug}
+			}
+		}
+		// tags 简要
+		ts, er2 := r.ListArticleTags(ctx, a.ID)
+		if er2 == nil && len(ts) > 0 {
+			for _, t := range ts {
+				s.Tags = append(s.Tags, &domain.TagBrief{ID: t.ID, Name: t.Name, Slug: t.Slug, Color: t.Color})
+			}
+		}
+		summaries = append(summaries, s)
 	}
 	cnt, err := orm.NewSelector[domain.Article](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
@@ -67,7 +95,7 @@ func (r *ContentRepository) ListArticleSummaries(ctx context.Context, page, page
 	return summaries, cnt.ID, nil
 }
 
-// SearchArticleSummaries 模糊搜索标题或摘要
+// SearchArticleSummaries 模糊搜索标题或摘要（扩展同上）
 func (r *ContentRepository) SearchArticleSummaries(ctx context.Context, keyword string, page, pageSize int) ([]*domain.ArticleSummary, int64, error) {
 	offset := (page - 1) * pageSize
 	if keyword == "" {
@@ -85,7 +113,34 @@ func (r *ContentRepository) SearchArticleSummaries(ctx context.Context, keyword 
 	}
 	summaries := make([]*domain.ArticleSummary, 0, len(rows))
 	for _, a := range rows {
-		summaries = append(summaries, &domain.ArticleSummary{ID: a.ID, Title: a.Title})
+		if a == nil {
+			continue
+		}
+		s := &domain.ArticleSummary{ID: a.ID, Title: a.Title, AuthorID: a.AuthorID}
+		if a.Summary != "" {
+			s.Summary = a.Summary
+		} else {
+			runes := []rune(a.Content)
+			if len(runes) > 120 {
+				s.Summary = string(runes[:120])
+			} else {
+				s.Summary = string(runes)
+			}
+		}
+		s.CoverURL = a.Cover
+		if a.CategoryID > 0 {
+			c, er := orm.NewSelector[domain.Category](r.db).Where(orm.C("Id").Eq(a.CategoryID)).Get(ctx)
+			if er == nil && c != nil {
+				s.Category = &domain.CategoryBrief{ID: c.ID, Name: c.Name, Slug: c.Slug}
+			}
+		}
+		ts, er2 := r.ListArticleTags(ctx, a.ID)
+		if er2 == nil && len(ts) > 0 {
+			for _, t := range ts {
+				s.Tags = append(s.Tags, &domain.TagBrief{ID: t.ID, Name: t.Name, Slug: t.Slug, Color: t.Color})
+			}
+		}
+		summaries = append(summaries, s)
 	}
 	all, err := orm.NewSelector[domain.Article](r.db).
 		Where(orm.Raw("Title LIKE ? OR Summary LIKE ?", keyword, keyword).AsPredicate()).
@@ -251,6 +306,60 @@ func (r *ContentRepository) UpdateArticleTags(ctx context.Context, articleID int
 	return orm.NewInserter[domain.ArticleTag](r.db).Values(batch...).Exec(ctx).Err()
 }
 
+// ListArticleSummariesFiltered 支持按分类与标签过滤的摘要列表
+func (r *ContentRepository) ListArticleSummariesFiltered(ctx context.Context, categoryID *int64, tagIDs []int64, page, pageSize int) ([]*domain.ArticleSummary, int64, error) {
+	offset := (page - 1) * pageSize
+	base := orm.NewSelector[domain.Article](r.db).OrderBy(orm.Desc("PublishedAt"))
+	if categoryID != nil && *categoryID > 0 {
+		base = base.Where(orm.C("CategoryID").Eq(*categoryID))
+	}
+	if len(tagIDs) > 0 {
+		conds := make([]string, 0, len(tagIDs))
+		args := make([]any, 0, len(tagIDs))
+		for range tagIDs {
+			conds = append(conds, "at.tag_id = ?")
+		}
+		for _, id := range tagIDs {
+			args = append(args, id)
+		}
+		clause := "EXISTS (SELECT 1 FROM blog_article_tags at WHERE at.article_id = blog_article.id AND (" + strings.Join(conds, " OR ") + "))"
+		base = base.Where(orm.Raw(clause, args...).AsPredicate())
+	}
+	rows, err := base.Limit(pageSize).Offset(offset).GetMulti(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	summaries := make([]*domain.ArticleSummary, 0, len(rows))
+	for _, a := range rows {
+		if a == nil {
+			continue
+		}
+		summaries = append(summaries, &domain.ArticleSummary{ID: a.ID, Title: a.Title})
+	}
+	// 统计总数
+	cntSel := orm.NewSelector[domain.Article](r.db).Select(orm.Count("Id").As("Id"))
+	if categoryID != nil && *categoryID > 0 {
+		cntSel = cntSel.Where(orm.C("CategoryID").Eq(*categoryID))
+	}
+	if len(tagIDs) > 0 {
+		conds := make([]string, 0, len(tagIDs))
+		args := make([]any, 0, len(tagIDs))
+		for range tagIDs {
+			conds = append(conds, "at.tag_id = ?")
+		}
+		for _, id := range tagIDs {
+			args = append(args, id)
+		}
+		clause := "EXISTS (SELECT 1 FROM blog_article_tags at WHERE at.article_id = blog_article.id AND (" + strings.Join(conds, " OR ") + "))"
+		cntSel = cntSel.Where(orm.Raw(clause, args...).AsPredicate())
+	}
+	cnt, err := cntSel.Get(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	return summaries, cnt.ID, nil
+}
+
 // containsFold 简单不区分大小写包含
 func containsFold(s, sub string) bool {
 	if sub == "" {
@@ -269,3 +378,22 @@ func indexFold(s, sub string) int {
 }
 
 func index(s, sub string) int { return strings.Index(s, sub) }
+
+func (r *ContentRepository) ListAllTags(ctx context.Context) ([]*domain.Tag, error) {
+	list, err := orm.NewSelector[domain.Tag](r.db).OrderBy(orm.Asc("Id")).GetMulti(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func (r *ContentRepository) CountArticlesByTag(ctx context.Context, tagID int64) (int64, error) {
+	row, err := orm.NewSelector[domain.ArticleTag](r.db).
+		Select(orm.Count("Id").As("Id")).
+		Where(orm.C("TagID").Eq(tagID)).
+		Get(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return row.ID, nil
+}

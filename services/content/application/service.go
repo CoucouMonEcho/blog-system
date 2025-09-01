@@ -71,6 +71,18 @@ func (s *ContentAppService) ListSummaries(ctx context.Context, page, pageSize in
 	return s.repo.ListArticleSummaries(ctx, page, pageSize)
 }
 
+// ListSummariesFiltered 支持分类与标签过滤的文章摘要列表
+func (s *ContentAppService) ListSummariesFiltered(ctx context.Context, categoryID *int64, tagIDs []int64, page, pageSize int) ([]*domain.ArticleSummary, int64, error) {
+	// 优先调用有过滤实现的方法；若仓储未实现则回退到无过滤，并在上层过滤（此处假定已有实现）
+	type repoWithFilter interface {
+		ListArticleSummariesFiltered(ctx context.Context, categoryID *int64, tagIDs []int64, page, pageSize int) ([]*domain.ArticleSummary, int64, error)
+	}
+	if rf, ok := s.repo.(repoWithFilter); ok {
+		return rf.ListArticleSummariesFiltered(ctx, categoryID, tagIDs, page, pageSize)
+	}
+	return s.repo.ListArticleSummaries(ctx, page, pageSize)
+}
+
 // SearchSummaries 关键词搜索文章摘要
 func (s *ContentAppService) SearchSummaries(ctx context.Context, keyword string, page, pageSize int) ([]*domain.ArticleSummary, int64, error) {
 	return s.repo.SearchArticleSummaries(ctx, keyword, page, pageSize)
@@ -83,8 +95,8 @@ func (s *ContentAppService) CountArticles(ctx context.Context) (int64, error) {
 
 func (s *ContentAppService) ListAllArticles(ctx context.Context) ([]*domain.Article, int64, error) {
 	// 复用分页接口：一次拉取全部
-	const max = int(^uint(0) >> 1)
-	list, total, err := s.repo.ListArticles(ctx, 1, max)
+	const m = int(^uint(0) >> 1)
+	list, total, err := s.repo.ListArticles(ctx, 1, m)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -151,6 +163,31 @@ func (s *ContentAppService) ListAllTags(ctx context.Context) ([]*domain.Tag, int
 		return nil, 0, err
 	}
 	return list, total, nil
+}
+
+func (s *ContentAppService) ListAllTagsWithCount(ctx context.Context) ([]struct {
+	Tag   *domain.Tag
+	Count int64
+}, error) {
+	all, err := s.repo.ListAllTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]struct {
+		Tag   *domain.Tag
+		Count int64
+	}, 0, len(all))
+	for _, t := range all {
+		c, err := s.repo.CountArticlesByTag(ctx, t.ID)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, struct {
+			Tag   *domain.Tag
+			Count int64
+		}{Tag: t, Count: c})
+	}
+	return res, nil
 }
 
 func (s *ContentAppService) GetArticleTags(ctx context.Context, articleID int64) ([]*domain.Tag, error) {

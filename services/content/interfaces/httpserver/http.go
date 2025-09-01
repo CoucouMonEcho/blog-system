@@ -8,6 +8,7 @@ import (
 	"blog-system/services/content/domain"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/CoucouMonEcho/go-framework/web"
@@ -50,11 +51,11 @@ func (s *HTTPServer) registerRoutes() {
 		_ = ctx.RespJSONOK(dto.Success(map[string]any{"status": "ok", "service": "content"}))
 	})
 
-	// 只保留只读接口：列表与详情
 	s.server.Get("/api/article/:article_id", s.GetArticle)
 	s.server.Get("/api/article/list", s.ListArticleSummaries)
 	s.server.Get("/api/article/search", s.SearchArticles)
 	s.server.Get("/api/category/list", s.ListCategories)
+	s.server.Get("/api/tag/list", s.ListTags)
 }
 
 func (s *HTTPServer) GetArticle(ctx *web.Context) {
@@ -71,10 +72,32 @@ func (s *HTTPServer) GetArticle(ctx *web.Context) {
 	_ = ctx.RespJSONOK(dto.Success(art))
 }
 
-// ListArticleSummaries 文章列表（ID+Title）
+// ListArticleSummaries 文章列表（ID+Title），支持分类与标签过滤
 func (s *HTTPServer) ListArticleSummaries(ctx *web.Context) {
+	q := ctx.Req.URL.Query()
+	var (
+		categoryID *int64
+		tagIDs     []int64
+	)
+	if v := q.Get("category_id"); v != "" {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil && id > 0 {
+			categoryID = &id
+		}
+	}
+	if v := q.Get("tag_ids"); v != "" {
+		parts := strings.Split(v, ",")
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			if id, err := strconv.ParseInt(p, 10, 64); err == nil && id > 0 {
+				tagIDs = append(tagIDs, id)
+			}
+		}
+	}
 	page, pageSize := parsePagination(ctx)
-	list, total, err := s.contentService.ListSummaries(ctx.Req.Context(), page, pageSize)
+	list, total, err := s.contentService.ListSummariesFiltered(ctx.Req.Context(), categoryID, tagIDs, page, pageSize)
 	if err != nil {
 		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
 		return
@@ -108,6 +131,27 @@ func (s *HTTPServer) ListCategories(ctx *web.Context) {
 		return
 	}
 	_ = ctx.RespJSONOK(dto.Success(list))
+}
+
+// ListTags 标签列表，返回每个标签及 count（文章数）
+func (s *HTTPServer) ListTags(ctx *web.Context) {
+	tagsWithCount, err := s.contentService.ListAllTagsWithCount(ctx.Req.Context())
+	if err != nil {
+		_ = ctx.RespJSON(http.StatusInternalServerError, dto.Error(errcode.ErrInternal, err.Error()))
+		return
+	}
+	type TagVO struct {
+		ID    int64  `json:"id"`
+		Name  string `json:"name"`
+		Slug  string `json:"slug"`
+		Color string `json:"color"`
+		Count int64  `json:"count"`
+	}
+	out := make([]TagVO, 0, len(tagsWithCount))
+	for _, tc := range tagsWithCount {
+		out = append(out, TagVO{ID: tc.Tag.ID, Name: tc.Tag.Name, Slug: tc.Tag.Slug, Color: tc.Tag.Color, Count: tc.Count})
+	}
+	_ = ctx.RespJSONOK(dto.Success(out))
 }
 
 // parsePagination 统一分页解析

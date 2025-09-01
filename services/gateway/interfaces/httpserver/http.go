@@ -30,6 +30,7 @@ func NewHTTPServer(gatewayService *application.GatewayService) *HTTPServer {
 		web.ServerWithMiddlewares(
 			errhandle.NewMiddlewareBuilder().RegisterError(http.StatusInternalServerError, []byte("内部服务错误")).Build(),
 			accesslog.NewMiddlewareBuilder().LogFunc(func(log string) { logger.Log().Info(log) }).Build(),
+			corsMiddleware(),
 			webprom.MiddlewareBuilder{Namespace: "blog-system", Subsystem: "gateway", Name: "http", Help: "gateway http latency"}.Build(),
 		),
 	)
@@ -44,6 +45,23 @@ func NewHTTPServer(gatewayService *application.GatewayService) *HTTPServer {
 	server.Use(http.MethodPost, "/api/*", hs.authMiddleware())
 
 	return hs
+}
+
+// corsMiddleware CORS中间件（全局）
+func corsMiddleware() web.Middleware {
+	return func(next web.Handler) web.Handler {
+		return func(ctx *web.Context) {
+			ctx.Resp.Header().Set("Access-Control-Allow-Origin", "*")
+			ctx.Resp.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			ctx.Resp.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-User-ID")
+
+			if ctx.Req.Method == http.MethodOptions {
+				_ = ctx.RespJSON(http.StatusNoContent, "")
+				return
+			}
+			next(ctx)
+		}
+	}
 }
 
 // authMiddleware 统一JWT鉴权

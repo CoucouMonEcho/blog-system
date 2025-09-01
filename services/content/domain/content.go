@@ -28,8 +28,13 @@ func (Article) TableName() string { return "blog_article" }
 
 // ArticleSummary 文章摘要
 type ArticleSummary struct {
-	ID    int64  `json:"id"`
-	Title string `json:"title"`
+	ID       int64          `json:"id"`
+	Title    string         `json:"title"`
+	Summary  string         `json:"summary,omitempty"`
+	AuthorID int64          `json:"author_id,omitempty"`
+	Category *CategoryBrief `json:"category,omitempty"`
+	Tags     []*TagBrief    `json:"tags,omitempty"`
+	CoverURL string         `json:"cover_url,omitempty"`
 }
 
 // Category 分类领域模型（单级）
@@ -44,6 +49,13 @@ type Category struct {
 
 func (Category) TableName() string { return "blog_category" }
 
+// 简要返回用
+type CategoryBrief struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
 // Tag 标签领域模型
 type Tag struct {
 	ID        int64     `json:"id"`
@@ -55,6 +67,14 @@ type Tag struct {
 }
 
 func (Tag) TableName() string { return "blog_tag" }
+
+// 简要返回用
+type TagBrief struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Slug  string `json:"slug"`
+	Color string `json:"color"`
+}
 
 // ArticleTag 文章-标签 关联（多对多）
 type ArticleTag struct {
@@ -95,4 +115,9 @@ type ContentRepository interface {
 	CountTags(ctx context.Context) (int64, error)
 	ListArticleTags(ctx context.Context, articleID int64) ([]*Tag, error)
 	UpdateArticleTags(ctx context.Context, articleID int64, tagIDs []int64) error
+	// 新增：标签全量与计数
+	ListAllTags(ctx context.Context) ([]*Tag, error)
+	CountArticlesByTag(ctx context.Context, tagID int64) (int64, error)
+	// 可选：带过滤的摘要
+	ListArticleSummariesFiltered(ctx context.Context, categoryID *int64, tagIDs []int64, page, pageSize int) ([]*ArticleSummary, int64, error)
 }
