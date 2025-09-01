@@ -6,6 +6,7 @@ import (
 	"time"
 
 	conf "blog-system/common/pkg/config"
+	"blog-system/common/pkg/logger"
 	"blog-system/services/admin/application"
 	"blog-system/services/admin/domain"
 	cpb "blog-system/services/content/proto"
@@ -51,6 +52,7 @@ func (c *ContentClient) DeleteArticle(ctx context.Context, id int64) error {
 func (c *ContentClient) ListArticles(ctx context.Context) ([]*domain.Article, int64, error) {
 	resp, err := c.cli.ListArticles(ctx, &cpb.Empty{})
 	if err != nil {
+		logger.Log().Error("clients: 列表文章失败: %v", err)
 		return nil, 0, err
 	}
 	out := make([]*domain.Article, 0, len(resp.Data))
@@ -62,6 +64,7 @@ func (c *ContentClient) ListArticles(ctx context.Context) ([]*domain.Article, in
 func (c *ContentClient) CountArticles(ctx context.Context) (int64, error) {
 	resp, err := c.cli.CountArticles(ctx, &cpb.Empty{})
 	if err != nil {
+		logger.Log().Error("clients: 统计文章失败: %v", err)
 		return 0, err
 	}
 	return resp.Value, nil
@@ -82,6 +85,7 @@ func (c *ContentClient) DeleteCategory(ctx context.Context, id int64) error {
 func (c *ContentClient) ListCategories(ctx context.Context) ([]*domain.Category, int64, error) {
 	resp, err := c.cli.ListCategories(ctx, &cpb.Empty{})
 	if err != nil {
+		logger.Log().Error("clients: 列表分类失败: %v", err)
 		return nil, 0, err
 	}
 	if resp == nil {
@@ -96,6 +100,7 @@ func (c *ContentClient) ListCategories(ctx context.Context) ([]*domain.Category,
 func (c *ContentClient) CountCategories(ctx context.Context) (int64, error) {
 	resp, err := c.cli.CountCategories(ctx, &cpb.Empty{})
 	if err != nil {
+		logger.Log().Error("clients: 统计分类失败: %v", err)
 		return 0, err
 	}
 	return resp.Value, nil
@@ -117,6 +122,7 @@ func (c *ContentClient) DeleteTag(ctx context.Context, id int64) error {
 func (c *ContentClient) ListTags(ctx context.Context) ([]*domain.Tag, error) {
 	resp, err := c.cli.ListTags(ctx, &cpb.Empty{})
 	if err != nil {
+		logger.Log().Error("clients: 列表标签失败: %v", err)
 		return nil, err
 	}
 	out := make([]*domain.Tag, 0, len(resp.Tags))
@@ -128,6 +134,7 @@ func (c *ContentClient) ListTags(ctx context.Context) ([]*domain.Tag, error) {
 func (c *ContentClient) CountTags(ctx context.Context) (int64, error) {
 	resp, err := c.cli.CountTags(ctx, &cpb.Empty{})
 	if err != nil {
+		logger.Log().Error("clients: 统计标签失败: %v", err)
 		return 0, err
 	}
 	return resp.Value, nil

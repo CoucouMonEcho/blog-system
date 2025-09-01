@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"blog-system/common/pkg/logger"
 	"blog-system/services/stat/domain"
 	"context"
 	"database/sql"
@@ -40,8 +41,10 @@ func (r *StatRepository) Get(ctx context.Context, typ string, targetID int64, ta
 	m, err := q.Get(ctx)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			logger.Log().Error("infrastructure: Get 记录不存在: typ=%s targetID=%d targetType=%s userID=%v err=%v", typ, targetID, targetType, userID, err)
 			return 0, nil
 		}
+		logger.Log().Error("infrastructure: Get 查询失败: typ=%s targetID=%d targetType=%s userID=%v err=%v", typ, targetID, targetType, userID, err)
 		return 0, err
 	}
 	return m.Count, nil

@@ -98,6 +98,7 @@ func (s *ContentAppService) ListAllArticles(ctx context.Context) ([]*domain.Arti
 	const m = int(^uint(0) >> 1)
 	list, total, err := s.repo.ListArticles(ctx, 1, m)
 	if err != nil {
+		logger.Log().Error("application: 列出文章失败: %v", err)
 		return nil, 0, err
 	}
 	return list, total, nil
@@ -160,6 +161,7 @@ func (s *ContentAppService) CountTags(ctx context.Context) (int64, error) {
 func (s *ContentAppService) ListAllTags(ctx context.Context) ([]*domain.Tag, int64, error) {
 	list, total, err := s.repo.ListTags(ctx, 1, math.MaxInt)
 	if err != nil {
+		logger.Log().Error("application: 列出标签失败: %v", err)
 		return nil, 0, err
 	}
 	return list, total, nil
@@ -171,6 +173,7 @@ func (s *ContentAppService) ListAllTagsWithCount(ctx context.Context) ([]struct 
 }, error) {
 	all, err := s.repo.ListAllTags(ctx)
 	if err != nil {
+		logger.Log().Error("application: 查询标签列表失败: %v", err)
 		return nil, err
 	}
 	res := make([]struct {
@@ -180,6 +183,7 @@ func (s *ContentAppService) ListAllTagsWithCount(ctx context.Context) ([]struct 
 	for _, t := range all {
 		c, err := s.repo.CountArticlesByTag(ctx, t.ID)
 		if err != nil {
+			logger.Log().Error("application: 统计标签文章数失败: tagID=%d err=%v", t.ID, err)
 			return nil, err
 		}
 		res = append(res, struct {

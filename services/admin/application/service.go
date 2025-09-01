@@ -96,6 +96,7 @@ func (s *AdminService) CreateCategory(ctx context.Context, c *domain.Category) e
 	c.CreatedAt = time.Now()
 	c.UpdatedAt = c.CreatedAt
 	if err := s.Content.CreateCategory(ctx, c); err != nil {
+		logger.Log().Error("application: 创建分类失败: %v", err)
 		return err
 	}
 	if s.Cache != nil {
@@ -106,6 +107,7 @@ func (s *AdminService) CreateCategory(ctx context.Context, c *domain.Category) e
 func (s *AdminService) UpdateCategory(ctx context.Context, c *domain.Category) error {
 	c.UpdatedAt = time.Now()
 	if err := s.Content.UpdateCategory(ctx, c); err != nil {
+		logger.Log().Error("application: 更新分类失败: %v", err)
 		return err
 	}
 	if s.Cache != nil {
@@ -115,6 +117,7 @@ func (s *AdminService) UpdateCategory(ctx context.Context, c *domain.Category) e
 }
 func (s *AdminService) DeleteCategory(ctx context.Context, id int64) error {
 	if err := s.Content.DeleteCategory(ctx, id); err != nil {
+		logger.Log().Error("application: 删除分类失败: id=%d err=%v", id, err)
 		return err
 	}
 	if s.Cache != nil {
@@ -150,14 +153,17 @@ func (s *AdminService) Dashboard(ctx context.Context) (map[string]int64, error) 
 	}
 	pv, uv, online, err := s.Stat.Overview(ctx)
 	if err != nil {
+		logger.Log().Error("application: 获取概览失败: %v", err)
 		return nil, err
 	}
 	artTotal, err := s.Content.CountArticles(ctx)
 	if err != nil {
+		logger.Log().Error("application: 统计文章数失败: %v", err)
 		return nil, err
 	}
 	catTotal, err := s.Content.CountCategories(ctx)
 	if err != nil {
+		logger.Log().Error("application: 统计分类数失败: %v", err)
 		return nil, err
 	}
 	return map[string]int64{

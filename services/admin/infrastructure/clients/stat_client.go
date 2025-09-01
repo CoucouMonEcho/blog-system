@@ -5,6 +5,7 @@ import (
 	"time"
 
 	conf "blog-system/common/pkg/config"
+	"blog-system/common/pkg/logger"
 	"blog-system/services/admin/application"
 	pb "blog-system/services/stat/proto"
 
@@ -40,6 +41,7 @@ func NewStatServiceClient(cfg *conf.AppConfig) *StatServiceClient {
 func (c *StatServiceClient) Overview(ctx context.Context) (int64, int64, int64, error) {
 	resp, err := c.cli.Overview(ctx, &pb.OverviewRequest{})
 	if err != nil {
+		logger.Log().Error("clients: 获取概览失败: %v", err)
 		return 0, 0, 0, err
 	}
 	return resp.PvToday, resp.UvToday, resp.OnlineUsers, nil
@@ -48,6 +50,7 @@ func (c *StatServiceClient) Overview(ctx context.Context) (int64, int64, int64, 
 func (c *StatServiceClient) PVSeries(ctx context.Context, from, to, interval string) ([]map[string]int64, error) {
 	resp, err := c.cli.PVTimeSeries(ctx, &pb.PVTimeSeriesRequest{From: from, To: to, Interval: interval})
 	if err != nil {
+		logger.Log().Error("clients: 获取PV序列失败: %v", err)
 		return nil, err
 	}
 	out := make([]map[string]int64, 0, len(resp.Points))

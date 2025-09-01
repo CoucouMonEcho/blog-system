@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"blog-system/common/pkg/logger"
 	"blog-system/services/content/domain"
 
 	"strings"
@@ -34,10 +35,12 @@ func (r *ContentRepository) ListArticles(ctx context.Context, page, pageSize int
 		OrderBy(orm.Desc("PublishedAt")).
 		Limit(pageSize).Offset(offset).GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListArticles 查询失败: %v", err)
 		return nil, 0, err
 	}
 	cnt, err := orm.NewSelector[domain.Article](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListArticles 统计失败: %v", err)
 		return nil, 0, err
 	}
 	return list, cnt.ID, nil
@@ -51,6 +54,7 @@ func (r *ContentRepository) ListArticleSummaries(ctx context.Context, page, page
 		Limit(pageSize).Offset(offset).
 		GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListArticleSummaries 查询失败: %v", err)
 		return nil, 0, err
 	}
 	summaries := make([]*domain.ArticleSummary, 0, len(rows))
@@ -90,6 +94,7 @@ func (r *ContentRepository) ListArticleSummaries(ctx context.Context, page, page
 	}
 	cnt, err := orm.NewSelector[domain.Article](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListArticleSummaries 统计失败: %v", err)
 		return nil, 0, err
 	}
 	return summaries, cnt.ID, nil
@@ -109,6 +114,7 @@ func (r *ContentRepository) SearchArticleSummaries(ctx context.Context, keyword 
 		Limit(pageSize).Offset(offset).
 		GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: SearchArticleSummaries 查询失败: %v", err)
 		return nil, 0, err
 	}
 	summaries := make([]*domain.ArticleSummary, 0, len(rows))
@@ -146,6 +152,7 @@ func (r *ContentRepository) SearchArticleSummaries(ctx context.Context, keyword 
 		Where(orm.Raw("Title LIKE ? OR Summary LIKE ?", keyword, keyword).AsPredicate()).
 		GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: SearchArticleSummaries 获取总数失败: %v", err)
 		return nil, 0, err
 	}
 	return summaries, int64(len(all)), nil
@@ -172,6 +179,7 @@ func (r *ContentRepository) UpdateArticle(ctx context.Context, a *domain.Article
 func (r *ContentRepository) DeleteArticle(ctx context.Context, id int64) error {
 	// 物理删除文章，并删除文章标签关联
 	if err := orm.NewDeleter[domain.Article](r.db).Where(orm.C("Id").Eq(id)).Exec(ctx).Err(); err != nil {
+		logger.Log().Error("infrastructure: DeleteArticle 删除文章失败: %v", err)
 		return err
 	}
 	return orm.NewDeleter[domain.ArticleTag](r.db).Where(orm.C("ArticleID").Eq(id)).Exec(ctx).Err()
@@ -181,6 +189,7 @@ func (r *ContentRepository) DeleteArticle(ctx context.Context, id int64) error {
 func (r *ContentRepository) CountArticles(ctx context.Context) (int64, error) {
 	cnt, err := orm.NewSelector[domain.Article](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: CountArticles 统计失败: %v", err)
 		return 0, err
 	}
 	return cnt.ID, nil
@@ -190,6 +199,7 @@ func (r *ContentRepository) CountArticles(ctx context.Context) (int64, error) {
 func (r *ContentRepository) ListAllCategories(ctx context.Context) ([]*domain.Category, error) {
 	list, err := orm.NewSelector[domain.Category](r.db).OrderBy(orm.Asc("Sort")).GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListAllCategories 查询失败: %v", err)
 		return nil, err
 	}
 	return list, nil
@@ -199,10 +209,12 @@ func (r *ContentRepository) ListCategories(ctx context.Context, page, pageSize i
 	offset := (page - 1) * pageSize
 	list, err := orm.NewSelector[domain.Category](r.db).OrderBy(orm.Asc("Sort")).Limit(pageSize).Offset(offset).GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListCategories 查询失败: %v", err)
 		return nil, 0, err
 	}
 	cnt, err := orm.NewSelector[domain.Category](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListCategories 统计失败: %v", err)
 		return nil, 0, err
 	}
 	return list, cnt.ID, nil
@@ -211,6 +223,7 @@ func (r *ContentRepository) ListCategories(ctx context.Context, page, pageSize i
 func (r *ContentRepository) CountCategories(ctx context.Context) (int64, error) {
 	cnt, err := orm.NewSelector[domain.Category](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: CountCategories 统计失败: %v", err)
 		return 0, err
 	}
 	return cnt.ID, nil
@@ -252,6 +265,7 @@ func (r *ContentRepository) UpdateTag(ctx context.Context, t *domain.Tag) error 
 func (r *ContentRepository) DeleteTag(ctx context.Context, id int64) error {
 	// 删除标签与文章关联，再删除标签
 	if err := orm.NewDeleter[domain.ArticleTag](r.db).Where(orm.C("TagID").Eq(id)).Exec(ctx).Err(); err != nil {
+		logger.Log().Error("infrastructure: DeleteTag 删除关联失败: %v", err)
 		return err
 	}
 	return orm.NewDeleter[domain.Tag](r.db).Where(orm.C("Id").Eq(id)).Exec(ctx).Err()
@@ -261,10 +275,12 @@ func (r *ContentRepository) ListTags(ctx context.Context, page, pageSize int) ([
 	offset := (page - 1) * pageSize
 	list, err := orm.NewSelector[domain.Tag](r.db).OrderBy(orm.Asc("Id")).Limit(pageSize).Offset(offset).GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListTags 查询失败: %v", err)
 		return nil, 0, err
 	}
 	cnt, err := orm.NewSelector[domain.Tag](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListTags 统计失败: %v", err)
 		return nil, 0, err
 	}
 	return list, cnt.ID, nil
@@ -273,6 +289,7 @@ func (r *ContentRepository) ListTags(ctx context.Context, page, pageSize int) ([
 func (r *ContentRepository) CountTags(ctx context.Context) (int64, error) {
 	cnt, err := orm.NewSelector[domain.Tag](r.db).Select(orm.Count("Id").As("Id")).Get(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: CountTags 统计失败: %v", err)
 		return 0, err
 	}
 	return cnt.ID, nil
@@ -285,6 +302,7 @@ func (r *ContentRepository) ListArticleTags(ctx context.Context, articleID int64
 		).
 		GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListArticleTags 查询失败: %v", err)
 		return nil, err
 	}
 	return rows, nil
@@ -293,6 +311,7 @@ func (r *ContentRepository) ListArticleTags(ctx context.Context, articleID int64
 func (r *ContentRepository) UpdateArticleTags(ctx context.Context, articleID int64, tagIDs []int64) error {
 	// 先删除旧关联
 	if err := orm.NewDeleter[domain.ArticleTag](r.db).Where(orm.C("ArticleID").Eq(articleID)).Exec(ctx).Err(); err != nil {
+		logger.Log().Error("infrastructure: UpdateArticleTags 删除旧关联失败: %v", err)
 		return err
 	}
 	// 批量插入新关联
@@ -327,6 +346,7 @@ func (r *ContentRepository) ListArticleSummariesFiltered(ctx context.Context, ca
 	}
 	rows, err := base.Limit(pageSize).Offset(offset).GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListArticleSummariesFiltered 查询失败: %v", err)
 		return nil, 0, err
 	}
 	summaries := make([]*domain.ArticleSummary, 0, len(rows))
@@ -355,6 +375,7 @@ func (r *ContentRepository) ListArticleSummariesFiltered(ctx context.Context, ca
 	}
 	cnt, err := cntSel.Get(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListArticleSummariesFiltered 统计失败: %v", err)
 		return nil, 0, err
 	}
 	return summaries, cnt.ID, nil
@@ -382,6 +403,7 @@ func index(s, sub string) int { return strings.Index(s, sub) }
 func (r *ContentRepository) ListAllTags(ctx context.Context) ([]*domain.Tag, error) {
 	list, err := orm.NewSelector[domain.Tag](r.db).OrderBy(orm.Asc("Id")).GetMulti(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: ListAllTags 查询失败: %v", err)
 		return nil, err
 	}
 	return list, nil
@@ -393,6 +415,7 @@ func (r *ContentRepository) CountArticlesByTag(ctx context.Context, tagID int64)
 		Where(orm.C("TagID").Eq(tagID)).
 		Get(ctx)
 	if err != nil {
+		logger.Log().Error("infrastructure: CountArticlesByTag 统计失败: %v", err)
 		return 0, err
 	}
 	return row.ID, nil

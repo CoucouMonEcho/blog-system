@@ -6,6 +6,7 @@ import (
 	"time"
 
 	conf "blog-system/common/pkg/config"
+	"blog-system/common/pkg/logger"
 	"blog-system/services/admin/application"
 	"blog-system/services/admin/domain"
 	upb "blog-system/services/user/proto"
@@ -57,6 +58,7 @@ func (c *UserServiceClient) Delete(ctx context.Context, id int64) error {
 func (c *UserServiceClient) List(ctx context.Context, page, pageSize int) ([]*domain.User, int64, error) {
 	resp, err := c.cli.ListUsers(ctx, &upb.ListUsersRequest{Page: int32(page), PageSize: int32(pageSize)})
 	if err != nil {
+		logger.Log().Error("clients: 列表用户失败: %v", err)
 		return nil, 0, err
 	}
 	if resp.Code != 0 {

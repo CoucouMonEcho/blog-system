@@ -54,10 +54,12 @@ func (s *GatewayService) Authenticate(ctx context.Context, authorization string)
 	}
 	claims, err := util.ParseToken(token)
 	if err != nil {
+		logger.Log().Error("application: 解析token失败: %v", err)
 		return 0, err
 	}
 	if s.cache != nil {
 		if _, er := s.cache.Get(ctx, "token_"+token); er != nil {
+			logger.Log().Error("application: token校验失败: %v", er)
 			return 0, errors.New("令牌已过期或无效")
 		}
 	}
