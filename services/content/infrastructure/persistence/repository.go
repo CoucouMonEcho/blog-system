@@ -426,7 +426,10 @@ func (r *ContentRepository) ListAllTags(ctx context.Context) ([]*domain.Tag, err
 }
 
 func (r *ContentRepository) CountArticlesByTag(ctx context.Context, tagID int64) (int64, error) {
-	row, err := orm.NewSelector[*int64](r.db).
+	var cnt *struct {
+		Count int64
+	}
+	row, err := orm.NewSelector[cnt](r.db).
 		From(orm.TableOf(&domain.ArticleTag{})).
 		Select(orm.Count("ID")).
 		Where(orm.C("TagID").Eq(tagID)).
@@ -435,5 +438,6 @@ func (r *ContentRepository) CountArticlesByTag(ctx context.Context, tagID int64)
 		logger.Log().Error("infrastructure: CountArticlesByTag 统计失败: %v", err)
 		return 0, err
 	}
-	return **row, nil
+	logger.Log().Info("infrastructure: test 统计成功: %v", err)
+	return row.Count, nil
 }
