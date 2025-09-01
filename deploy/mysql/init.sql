@@ -1,6 +1,14 @@
--- 创建数据库
+-- 创建数据库（重建表：先删后建）
 CREATE DATABASE IF NOT EXISTS blog_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE blog_system;
+
+-- 删除旧表（注意外键依赖顺序）
+DROP TABLE IF EXISTS blog_article_tags;
+DROP TABLE IF EXISTS blog_article;
+DROP TABLE IF EXISTS blog_tag;
+DROP TABLE IF EXISTS blog_category;
+DROP TABLE IF EXISTS blog_stat;
+DROP TABLE IF EXISTS blog_user;
 
 -- 用户表
 CREATE TABLE IF NOT EXISTS blog_user
@@ -119,7 +127,7 @@ CREATE TABLE IF NOT EXISTS blog_stat
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
 
--- 默认数据
+-- 默认数据（用户/分类/标签/文章/关联）
 INSERT INTO blog_user (username, email, password, role, status)
 VALUES ('admin', 'admin@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 0);
 
@@ -134,3 +142,11 @@ VALUES ('Go', 'go', '#00ADD8'),
        ('DDD', 'ddd', '#4ECDC4'),
        ('Docker', 'docker', '#45B7D1'),
        ('MySQL', 'mysql', '#F7DC6F');
+
+-- 示例文章（可选）
+INSERT INTO blog_article (title, slug, content, summary, cover, author_id, category_id, status, is_top, is_recommend, meta_title, meta_desc, meta_keywords, published_at)
+VALUES ('第一篇文章', 'first-post', '这是第一篇文章内容', '这是一段摘要', NULL, 1, 1, 1, FALSE, TRUE, '第一篇文章', '第一篇文章的描述', 'Go,微服务', NOW());
+
+-- 建立文章与标签关联
+INSERT INTO blog_article_tags (article_id, tag_id)
+VALUES (1, 1), (1, 2);

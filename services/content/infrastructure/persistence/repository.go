@@ -170,6 +170,9 @@ func (r *ContentRepository) UpdateArticle(ctx context.Context, a *domain.Article
 		Set(orm.C("Status"), a.Status).
 		Set(orm.C("IsTop"), a.IsTop).
 		Set(orm.C("IsRecommend"), a.IsRecommend).
+		Set(orm.C("MetaTitle"), a.MetaTitle).
+		Set(orm.C("MetaDesc"), a.MetaDesc).
+		Set(orm.C("MetaKeywords"), a.MetaKeywords).
 		Set(orm.C("PublishedAt"), a.PublishedAt).
 		Set(orm.C("UpdatedAt"), a.UpdatedAt).
 		Where(orm.C("ID").Eq(a.ID)).
@@ -237,6 +240,7 @@ func (r *ContentRepository) UpdateCategory(ctx context.Context, c *domain.Catego
 	return orm.NewUpdater[domain.Category](r.db).
 		Set(orm.C("Name"), c.Name).
 		Set(orm.C("Slug"), c.Slug).
+		Set(orm.C("Description"), c.Description).
 		Set(orm.C("Sort"), c.Sort).
 		Set(orm.C("UpdatedAt"), c.UpdatedAt).
 		Where(orm.C("ID").Eq(c.ID)).

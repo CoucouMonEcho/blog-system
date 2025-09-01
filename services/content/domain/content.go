@@ -6,22 +6,25 @@ import (
 )
 
 type Article struct {
-	ID          int64      `json:"id"`
-	Title       string     `json:"title"`
-	Slug        string     `json:"slug"`
-	Content     string     `json:"content"`
-	Summary     string     `json:"summary"`
-	Cover       string     `json:"cover"`
-	AuthorID    int64      `json:"author_id"`
-	CategoryID  int64      `json:"category_id"`
-	Status      int        `json:"status"`
-	ViewCount   int64      `json:"view_count"`
-	LikeCount   int64      `json:"like_count"`
-	IsTop       bool       `json:"is_top"`
-	IsRecommend bool       `json:"is_recommend"`
-	PublishedAt *time.Time `json:"published_at"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID           int64      `json:"id"`
+	Title        string     `json:"title"`
+	Slug         string     `json:"slug"`
+	Content      string     `json:"content"`
+	Summary      string     `json:"summary"`
+	Cover        string     `json:"cover"`
+	AuthorID     int64      `json:"author_id"`
+	CategoryID   int64      `json:"category_id"`
+	Status       int        `json:"status"`
+	ViewCount    int64      `json:"view_count"`
+	LikeCount    int64      `json:"like_count"`
+	IsTop        bool       `json:"is_top"`
+	IsRecommend  bool       `json:"is_recommend"`
+	MetaTitle    string     `json:"meta_title"`
+	MetaDesc     string     `json:"meta_desc"`
+	MetaKeywords string     `json:"meta_keywords"`
+	PublishedAt  *time.Time `json:"published_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 func (Article) TableName() string { return "blog_article" }
@@ -39,12 +42,13 @@ type ArticleSummary struct {
 
 // Category 分类领域模型（单级）
 type Category struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	Slug      string    `json:"slug"`
-	Sort      int       `json:"sort"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	Slug        string    `json:"slug"`
+	Description string    `json:"description"`
+	Sort        int       `json:"sort"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (Category) TableName() string { return "blog_category" }
@@ -115,9 +119,7 @@ type ContentRepository interface {
 	CountTags(ctx context.Context) (int64, error)
 	ListArticleTags(ctx context.Context, articleID int64) ([]*Tag, error)
 	UpdateArticleTags(ctx context.Context, articleID int64, tagIDs []int64) error
-	// 新增：标签全量与计数
 	ListAllTags(ctx context.Context) ([]*Tag, error)
 	CountArticlesByTag(ctx context.Context, tagID int64) (int64, error)
-	// 可选：带过滤的摘要
 	ListArticleSummariesFiltered(ctx context.Context, categoryID *int64, tagIDs []int64, page, pageSize int) ([]*ArticleSummary, int64, error)
 }
