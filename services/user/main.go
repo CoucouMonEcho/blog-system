@@ -35,7 +35,7 @@ func main() {
 	}
 	logger.Log().Info("main: 数据库连接成功")
 
-	// 初始化缓存
+	// 初始化缓存 - 添加错误处理但不退出
 	cache, err := infra.InitCache(cfg)
 	if err != nil {
 		logger.Log().Error("main: 缓存连接失败: %v", err)
@@ -56,11 +56,11 @@ func main() {
 	logger.Log().Info("main: HTTP服务器初始化完成")
 
 	// 启动 gRPC 服务
-	grpcSrv, _ := micro.NewServer("user-service")
+	grpcSrv, _ := micro.NewServer("user-grpc")
 	if len(cfg.Registry.Endpoints) > 0 {
 		if cli, er := clientv3.New(clientv3.Config{Endpoints: cfg.Registry.Endpoints}); er == nil {
 			if r, er2 := regEtcd.NewRegistry(cli); er2 == nil {
-				grpcSrv, _ = micro.NewServer("user-service", micro.ServerWithRegistry(r))
+				grpcSrv, _ = micro.NewServer("user-grpc", micro.ServerWithRegistry(r))
 			}
 		}
 	}

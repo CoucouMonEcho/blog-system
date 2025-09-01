@@ -32,7 +32,7 @@ func NewContentClient(cfg *conf.AppConfig) *ContentClient {
 		}
 	}
 	c, _ := micro.NewClient(micro.ClientWithInsecure(), micro.ClientWithRegistry(reg, 3*time.Second))
-	cc, _ := c.Dial(context.Background(), "content-service")
+	cc, _ := c.Dial(context.Background(), "content-grpc")
 	return &ContentClient{cc: cc, cli: cpb.NewContentAdminServiceClient(cc)}
 }
 

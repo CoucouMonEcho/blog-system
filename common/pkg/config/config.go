@@ -73,11 +73,7 @@ type AppConfig struct {
 	Routes         RouteConfig          `yaml:"routes"`
 	RateLimit      RateLimitConfig      `yaml:"rate_limit"`
 	CircuitBreaker CircuitBreakerConfig `yaml:"circuit_breaker"`
-	UserService    struct {
-		BaseURL string `yaml:"base_url"`
-		Timeout int    `yaml:"timeout"`
-	} `yaml:"user_service"`
-	Prometheus struct {
+	Prometheus     struct {
 		Address string `yaml:"address"`
 	} `yaml:"prometheus"`
 	Log logger.Config `yaml:"log"`

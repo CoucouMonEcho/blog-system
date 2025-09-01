@@ -26,10 +26,6 @@ type UserServiceClient struct {
 
 // NewUserServiceClient 创建 gRPC 客户端
 func NewUserServiceClient(cfg *conf.AppConfig) *UserServiceClient {
-	timeout := time.Second * 5
-	if cfg.UserService.Timeout > 0 {
-		timeout = time.Duration(cfg.UserService.Timeout) * time.Millisecond
-	}
 	var reg registry.Registry
 	if len(cfg.Registry.Endpoints) > 0 {
 		if cli, err := clientv3.New(clientv3.Config{Endpoints: cfg.Registry.Endpoints, DialTimeout: 3 * time.Second}); err == nil {
@@ -38,8 +34,8 @@ func NewUserServiceClient(cfg *conf.AppConfig) *UserServiceClient {
 			}
 		}
 	}
-	c, _ := micro.NewClient(micro.ClientWithInsecure(), micro.ClientWithRegistry(reg, timeout))
-	cc, _ := c.Dial(context.Background(), "user-service")
+	c, _ := micro.NewClient(micro.ClientWithInsecure(), micro.ClientWithRegistry(reg, 3*time.Second))
+	cc, _ := c.Dial(context.Background(), "user-grpc")
 	return &UserServiceClient{cc: cc, cli: upb.NewUserServiceClient(cc), registry: reg}
 }
 

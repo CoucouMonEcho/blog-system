@@ -23,7 +23,7 @@ func main() {
 
 	userCli := clients.NewUserServiceClient(cfg)
 	contentCli := clients.NewContentClient(cfg)
-	statCli := infrastructure.NewStatServiceClient(cfg)
+	statCli := clients.NewStatServiceClient(cfg)
 	promCli := infrastructure.NewPrometheusClient("", 0)
 	app := application.NewAdminService(userCli, contentCli, logger.Log(), nil, statCli, promCli)
 

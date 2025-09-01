@@ -1,4 +1,4 @@
-package infrastructure
+package clients
 
 import (
 	"context"
@@ -31,7 +31,7 @@ func NewStatServiceClient(cfg *conf.AppConfig) *StatServiceClient {
 		}
 	}
 	c, _ := micro.NewClient(micro.ClientWithInsecure(), micro.ClientWithRegistry(r, 3*time.Second))
-	cc, _ := c.Dial(context.Background(), "stat-service")
+	cc, _ := c.Dial(context.Background(), "stat-grpc")
 	return &StatServiceClient{cc: cc, cli: pb.NewStatServiceClient(cc)}
 }
 

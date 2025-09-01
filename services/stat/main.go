@@ -34,14 +34,14 @@ func main() {
 	http.SetRepository(repo)
 	// 启动 gRPC 服务（go-framework/micro）
 	agg := infrastructure.NewPVAggregator()
-	grpcSrv, _ := micro.NewServer("stat-service")
+	grpcSrv, _ := micro.NewServer("stat-grpc")
 	// 注册到 etcd
 	if len(cfg.Registry.Endpoints) > 0 {
 		cli, er := clientv3.New(clientv3.Config{Endpoints: cfg.Registry.Endpoints})
 		if er == nil {
 			r, er2 := regEtcd.NewRegistry(cli)
 			if er2 == nil {
-				grpcSrv, _ = micro.NewServer("stat-service", micro.ServerWithRegistry(r))
+				grpcSrv, _ = micro.NewServer("stat-grpc", micro.ServerWithRegistry(r))
 			}
 		}
 	}

@@ -28,7 +28,7 @@ func main() {
 	logger.Init(&cfg.Log)
 	db, err := infra.InitDB(cfg)
 	if err != nil {
-		logger.Log().Error("main: 数据库连接失败: %v", err)
+		logger.Log().Error("database: 数据库连接失败: %v", err)
 		return
 	}
 	cache, _ := infra.InitCache(cfg)
@@ -39,11 +39,11 @@ func main() {
 	http := httpapi.NewHTTPServer(app)
 
 	// gRPC 服务
-	grpcSrv, _ := micro.NewServer("content-service")
+	grpcSrv, _ := micro.NewServer("content-grpc")
 	if len(cfg.Registry.Endpoints) > 0 {
 		if cli, er := clientv3.New(clientv3.Config{Endpoints: cfg.Registry.Endpoints}); er == nil {
 			if r, er2 := regEtcd.NewRegistry(cli); er2 == nil {
-				grpcSrv, _ = micro.NewServer("content-service", micro.ServerWithRegistry(r))
+				grpcSrv, _ = micro.NewServer("content-grpc", micro.ServerWithRegistry(r))
 			}
 		}
 	}
