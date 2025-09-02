@@ -429,7 +429,7 @@ func (r *ContentRepository) ListAllTags(ctx context.Context) ([]*domain.Tag, err
 func (r *ContentRepository) CountArticlesByTag(ctx context.Context, tagID int64) (int64, error) {
 	cnt, err := orm.NewSelector[aggregate.Result](r.db).
 		From(orm.TableOf(&domain.ArticleTag{})).
-		Select(orm.Count("ID").As("Count")).
+		Select(orm.Count("ID").As("count")).
 		Where(orm.Raw("tag_id = ?", tagID).AsPredicate()).
 		Get(ctx)
 	if err != nil {
