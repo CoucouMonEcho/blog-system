@@ -430,7 +430,7 @@ func (r *ContentRepository) CountArticlesByTag(ctx context.Context, tagID int64)
 	cnt, err := orm.NewSelector[aggregate.Result](r.db).
 		From(orm.TableOf(&domain.ArticleTag{})).
 		Select(orm.Count("ID").As("Count")).
-		Where(orm.C("TagID").Eq(tagID)).
+		Where(orm.Raw("tag_id = ?", tagID).AsPredicate()).
 		Get(ctx)
 	if err != nil {
 		logger.Log().Error("infrastructure: CountArticlesByTag 统计失败: %v", err)
