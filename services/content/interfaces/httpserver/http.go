@@ -36,7 +36,7 @@ func NewHTTPServer(contentService *application.ContentAppService) *HTTPServer {
 		web.ServerWithMiddlewares(
 			requestIDMiddleware,
 			errhandle.NewMiddlewareBuilder().RegisterError(http.StatusInternalServerError, []byte("内部服务错误")).Build(),
-			accesslog.NewMiddlewareBuilder().LogFunc(func(log string) { logger.Log().Info(log) }).Build(),
+			accesslog.NewMiddlewareBuilder().LogFunc(func(log string) { logger.Log().Debug(log) }).Build(),
 			webprom.MiddlewareBuilder{Namespace: "blog-system", Subsystem: "content", Name: "http", Help: "content http latency"}.Build(),
 		),
 	)

@@ -29,7 +29,7 @@ func NewHTTPServer(gatewayService *application.GatewayService) *HTTPServer {
 		web.ServerWithLogger(logger.Log().Error),
 		web.ServerWithMiddlewares(
 			errhandle.NewMiddlewareBuilder().RegisterError(http.StatusInternalServerError, []byte("内部服务错误")).Build(),
-			accesslog.NewMiddlewareBuilder().LogFunc(func(log string) { logger.Log().Info(log) }).Build(),
+			accesslog.NewMiddlewareBuilder().LogFunc(func(log string) { logger.Log().Debug(log) }).Build(),
 			corsMiddleware(),
 			webprom.MiddlewareBuilder{Namespace: "blog-system", Subsystem: "gateway", Name: "http", Help: "gateway http latency"}.Build(),
 		),
